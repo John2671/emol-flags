@@ -39,7 +39,7 @@ No hace falta nada especial, es un archivo estático:
 ```bash
 git clone https://github.com/tu-usuario/flag-master.git
 cd flag-master
-# abrí index.html directo en el navegador, o serví la carpeta con:
+# abrir index.html directo en el navegador, o servir la carpeta con:
 python3 -m http.server 8000
 ```
 
