@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flag Master — V3</title>
+<style>
+:root{
+  --bg:#f4f6f8; --card:#fff; --text:#18212b; --muted:#6b7280;
+  --accent:#2563eb; --good:#16a34a; --bad:#dc2626; --border:#d9dee5;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
+.wrap{max-width:1180px;margin:auto;padding:18px}
+header{text-align:center;margin-bottom:14px}
+h1{margin:0 0 6px;font-size:30px}
+.subtitle{color:var(--muted);font-size:14px}
+.topbar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 14px;font-size:14px}
+.question{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:center;margin-bottom:12px}
+.question .label{font-size:13px;color:var(--muted);margin-bottom:4px}
+.question .country{font-size:28px;font-weight:800}
+.feedback{min-height:24px;font-weight:700;margin-top:7px}
+.feedback.good{color:var(--good)} .feedback.bad{color:var(--bad)}
+.controls{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-bottom:12px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
+.switch{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.switch input{width:17px;height:17px}
+.map-panel{display:none;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px;margin-bottom:12px}
+.map-panel.show{display:block}
+.map-title{text-align:center;font-weight:800;margin-bottom:7px}
+.map-wrap{position:relative;max-width:760px;margin:auto;border-radius:10px;overflow:hidden;background:#eef2f7}
+#leafletMap{width:100%;height:320px}
+@media(max-width:600px){#leafletMap{height:230px}}
+.map-note{text-align:center;color:var(--muted);font-size:11px;margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}
+.flag-card{background:var(--card);border:2px solid transparent;border-radius:10px;padding:7px;cursor:pointer;transition:.15s;min-width:0;position:relative}
+.flag-card:hover{transform:translateY(-2px);border-color:#aab4c0}
+.flag-card img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:5px;box-shadow:0 1px 3px #bbb}
+.flag-name{font-size:12px;text-align:center;font-weight:700;margin-top:6px;min-height:15px;visibility:hidden}
+.flag-card.identified{opacity:.38;cursor:default;border-color:#cbd5e1}
+.flag-card.identified .flag-name{visibility:visible}
+.flag-card.wrong{border-color:var(--bad);animation:shake .24s linear}
+@keyframes shake{25%{transform:translateX(-4px)}50%{transform:translateX(4px)}75%{transform:translateX(-3px)}}
+.end{display:none;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:25px;margin-top:14px}
+.end.show{display:block}.end h2{margin-top:0}
+button{border:0;border-radius:10px;background:var(--accent);color:white;padding:10px 17px;font-weight:700;cursor:pointer}
+button:hover{filter:brightness(.95)}
+.answer-controls{margin-top:10px;display:flex;gap:10px;justify-content:center}
+.btn-secondary{background:#e5e9ee;color:var(--text)}
+.btn-next{background:var(--good)}
+@media(max-width:900px){.grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:600px){
+  .wrap{padding:10px}.grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .flag-card{padding:5px;border-radius:8px}.flag-name{font-size:10px}
+  .question .country{font-size:23px} h1{font-size:25px}
+}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🌎 Flag Master</h1>
+    <div class="subtitle">Encuentra las 30 banderas. Las acertadas quedan visibles para ayudarte a aprender.</div>
+  </header>
+
+  <div class="topbar">
+    <div class="stat">Aciertos: <b id="correct">0</b>/30</div>
+    <div class="stat">Errores: <b id="wrong">0</b></div>
+    <div class="stat">Racha: <b id="streak">0</b></div>
+    <div class="stat">Puntaje: <b id="score">0</b></div>
+  </div>
+
+  <section class="question">
+    <div class="label">Busca la bandera de:</div>
+    <div class="country" id="target">—</div>
+    <div id="feedback" class="feedback"></div>
+    <div class="answer-controls">
+      <button id="giveUpBtn" class="btn-secondary">Me rindo 🏳️</button>
+      <button id="nextBtn" class="btn-next" style="display:none">Siguiente ➜</button>
+    </div>
+  </section>
+
+  <section class="controls">
+    <label class="switch">
+      <input id="showWrongName" type="checkbox" checked>
+      Mostrar país al equivocarse
+    </label>
+    <label class="switch">
+      <input id="showMap" type="checkbox">
+      Mostrar ubicación al acertar
+    </label>
+  </section>
+
+  <section id="mapPanel" class="map-panel">
+    <div class="map-title" id="mapTitle"></div>
+    <div class="map-wrap" id="mapWrap">
+      <div id="leafletMap"></div>
+    </div>
+    <div class="map-note">Ubicación aproximada del país.</div>
+  </section>
+
+  <main id="grid" class="grid"></main>
+
+  <section id="end" class="end">
+    <h2>🎉 ¡Completaste las 30!</h2>
+    <p id="finalText"></p>
+    <button id="restart">Jugar de nuevo</button>
+  </section>
+</div>
+
+<script>
+const countries = [
+["af","Afganistán"],["al","Albania"],["de","Alemania"],["ad","Andorra"],["ao","Angola"],
+["ag","Antigua y Barbuda"],["sa","Arabia Saudita"],["dz","Argelia"],["ar","Argentina"],["am","Armenia"],
+["au","Australia"],["at","Austria"],["az","Azerbaiyán"],["bs","Bahamas"],["bd","Bangladés"],
+["bb","Barbados"],["bh","Baréin"],["be","Bélgica"],["bz","Belice"],["bj","Benín"],["by","Bielorrusia"],
+["mm","Birmania"],["bo","Bolivia"],["ba","Bosnia y Herzegovina"],["bw","Botsuana"],["br","Brasil"],
+["bn","Brunéi"],["bg","Bulgaria"],["bf","Burkina Faso"],["bi","Burundi"],["bt","Bután"],["cv","Cabo Verde"],
+["kh","Camboya"],["cm","Camerún"],["ca","Canadá"],["qa","Catar"],["td","Chad"],["cl","Chile"],["cn","China"],
+["cy","Chipre"],["co","Colombia"],["km","Comoras"],["kp","Corea del Norte"],["kr","Corea del Sur"],
+["ci","Costa de Marfil"],["cr","Costa Rica"],["hr","Croacia"],["cu","Cuba"],["dk","Dinamarca"],
+["dm","Dominica"],["ec","Ecuador"],["eg","Egipto"],["sv","El Salvador"],["ae","Emiratos Árabes Unidos"],
+["er","Eritrea"],["sk","Eslovaquia"],["si","Eslovenia"],["es","España"],["us","Estados Unidos"],
+["ee","Estonia"],["sz","Esuatini"],["et","Etiopía"],["ph","Filipinas"],["fi","Finlandia"],["fj","Fiyi"],
+["fr","Francia"],["ga","Gabón"],["gm","Gambia"],["ge","Georgia"],["gh","Ghana"],["gd","Granada"],
+["gr","Grecia"],["gt","Guatemala"],["gn","Guinea"],["gq","Guinea Ecuatorial"],["gw","Guinea-Bisáu"],
+["gy","Guyana"],["ht","Haití"],["hn","Honduras"],["hu","Hungría"],["in","India"],["id","Indonesia"],
+["iq","Irak"],["ir","Irán"],["ie","Irlanda"],["is","Islandia"],["mh","Islas Marshall"],["sb","Islas Salomón"],
+["il","Israel"],["it","Italia"],["jm","Jamaica"],["jp","Japón"],["jo","Jordania"],["kz","Kazajistán"],
+["ke","Kenia"],["kg","Kirguistán"],["ki","Kiribati"],["kw","Kuwait"],["la","Laos"],["ls","Lesoto"],
+["lv","Letonia"],["lb","Líbano"],["lr","Liberia"],["ly","Libia"],["li","Liechtenstein"],["lt","Lituania"],
+["lu","Luxemburgo"],["mk","Macedonia del Norte"],["mg","Madagascar"],["my","Malasia"],["mw","Malaui"],
+["mv","Maldivas"],["ml","Malí"],["mt","Malta"],["ma","Marruecos"],["mu","Mauricio"],["mr","Mauritania"],
+["mx","México"],["fm","Micronesia"],["md","Moldavia"],["mc","Mónaco"],["mn","Mongolia"],["me","Montenegro"],
+["mz","Mozambique"],["na","Namibia"],["nr","Nauru"],["np","Nepal"],["ni","Nicaragua"],["ne","Níger"],
+["ng","Nigeria"],["no","Noruega"],["nz","Nueva Zelanda"],["om","Omán"],["nl","Países Bajos"],["pk","Pakistán"],
+["pw","Palaos"],["pa","Panamá"],["pg","Papúa Nueva Guinea"],["py","Paraguay"],["pe","Perú"],["pl","Polonia"],
+["pt","Portugal"],["gb","Reino Unido"],["cf","República Centroafricana"],["cz","Chequia"],["cg","República del Congo"],
+["cd","República Democrática del Congo"],["do","República Dominicana"],["rw","Ruanda"],["ro","Rumania"],
+["ru","Rusia"],["ws","Samoa"],["kn","San Cristóbal y Nieves"],["sm","San Marino"],
+["vc","San Vicente y las Granadinas"],["lc","Santa Lucía"],["st","Santo Tomé y Príncipe"],["sn","Senegal"],
+["rs","Serbia"],["sc","Seychelles"],["sl","Sierra Leona"],["sg","Singapur"],["sy","Siria"],["so","Somalia"],
+["lk","Sri Lanka"],["za","Sudáfrica"],["sd","Sudán"],["ss","Sudán del Sur"],["se","Suecia"],["ch","Suiza"],
+["sr","Surinam"],["th","Tailandia"],["tz","Tanzania"],["tj","Tayikistán"],["tl","Timor Oriental"],["tg","Togo"],
+["to","Tonga"],["tt","Trinidad y Tobago"],["tn","Túnez"],["tm","Turkmenistán"],["tr","Turquía"],["tv","Tuvalu"],
+["ua","Ucrania"],["ug","Uganda"],["uy","Uruguay"],["uz","Uzbekistán"],["vu","Vanuatu"],["va","Ciudad del Vaticano"],
+["ve","Venezuela"],["vn","Vietnam"],["ye","Yemen"],["dj","Yibuti"],["zm","Zambia"],["zw","Zimbabue"],["ps","Palestina"]
+];
+
+const coords = {
+cl:[-33,-70], ar:[-34,-64], pe:[-10,-76], bo:[-17,-65], br:[-10,-53], uy:[-33,-56], py:[-23,-58],
+mx:[23,-102], us:[39,-98], ca:[57,-106], es:[40,-4], fr:[46,2], de:[51,10], it:[42,12], gb:[54,-3],
+pt:[39,-8], nl:[52,5], be:[51,4], ch:[47,8], at:[47,14], pl:[52,19], ua:[49,32], ru:[61,90],
+tr:[39,35], eg:[27,30], ma:[32,-6], dz:[28,2], za:[-30,25], ng:[9,8], ke:[1,38], et:[9,40],
+sa:[24,45], in:[22,79], cn:[35,103], jp:[36,138], kr:[37,128], kp:[40,127], mn:[47,104],
+kz:[48,67], id:[-2,118], au:[-25,134], nz:[-41,174], ph:[13,122], th:[15,101], vn:[16,108],
+ir:[32,54], iq:[33,44], pk:[30,70], af:[34,66], np:[28,84], bd:[24,90], se:[62,15], no:[65,12],
+fi:[64,26], gr:[39,22], il:[31,35], ae:[24,54], qa:[25,51], az:[40,47], ge:[42,43], am:[40,45],
+ro:[46,25], bg:[43,25], rs:[44,21], hr:[45,16], cz:[49.8,15.5], sk:[48.7,19.7], hu:[47,19],
+dk:[56,10], ie:[53,-8], is:[65,-19], by:[54,28], lt:[56,24], lv:[57,25], ee:[59,26],
+sy:[35,38], jo:[31,36], lb:[34,36], kw:[29,47.5], om:[20,57], ye:[15,48], lk:[7,81],
+my:[4,109], sg:[1.3,103.8], kh:[12,105], la:[18,103], mm:[22,96], bn:[4.5,114.7],
+tw:[23.7,121], ni:[13,-85], cr:[10,-84], gt:[15,-90], hn:[15,-87], sv:[13.7,-89.2],
+pa:[9,-80], cu:[22,-79], do:[19,-70], ht:[19,-72.5], jm:[18,-77], co:[4,-72], ec:[-1.4,-78.4],
+ve:[7,-66], gy:[5.5,-59], sr:[4,-56], gf:[4,-53], gh:[7.9,-1.0], sn:[14,-14],
+gm:[13.5,-15.4], gn:[11,-10], gw:[12,-15], sl:[8.5,-11.8], lr:[6.5,-9.5], ci:[7.5,-5.5],
+bf:[12.2,-1.7], ml:[17,-4], ne:[17,8], td:[15,19], cm:[6,12], ga:[-1,11.8], cg:[-1,15.3],
+cd:[-3,23], ao:[-12.5,18.5], na:[-22,17], bw:[-22,24], zw:[-20,30], zm:[-14,28],
+mz:[-18,35], mg:[-20,47], mu:[-20.2,57.5], sc:[-4.7,55.5], tz:[-6,35], ug:[1,32],
+rw:[-2,30], bi:[-3.5,29.9], so:[5,46], sd:[15,30], ss:[7,30], er:[15,39], dj:[11.5,43],
+ls:[-29.5,28.2], sz:[-26.5,31.5], mw:[-13.5,34],
+al:[41,20], ad:[42.5,1.5], ag:[17.05,-61.8], bs:[24.25,-76], bb:[13.1,-59.6],
+bh:[26,50.55], bz:[17.2,-88.75], bj:[9.3,2.3], ba:[44,18], bt:[27.5,90.4],
+cv:[16,-24], cy:[35,33], km:[-11.9,43.3], dm:[15.4,-61.35], si:[46.1,14.8],
+fj:[-17.7,178], gd:[12.1,-61.7], gq:[1.6,10.6], mh:[7,171], sb:[-9.6,160],
+kg:[41.2,74.8], ki:[1.4,173], ly:[27,17], li:[47.14,9.55], lu:[49.6,6.1],
+mk:[41.6,21.7], mv:[3.2,73.2], mt:[35.9,14.5], mr:[20,-12], fm:[6.9,158.2],
+md:[47,28.9], mc:[43.73,7.42], me:[42.7,19.4], nr:[-0.5,166.9], pw:[7.5,134.6],
+pg:[-6,147], cf:[6.6,20.9], ws:[-13.8,-172], kn:[17.3,-62.7], sm:[43.94,12.46],
+vc:[13,-61.2], lc:[13.9,-60.98], st:[0.2,6.6], tj:[38.9,71.3], tl:[-8.8,125.7],
+tg:[8.6,1.2], to:[-21.2,-175.2], tt:[10.7,-61.2], tn:[34,9], tm:[39,59.6],
+tv:[-7.5,178.6], uz:[41.4,64.6], vu:[-16,167.9], va:[41.9,12.45], ps:[31.9,35.2]
+};
+
+let pool=[], current=null, correct=0, wrong=0, streak=0, score=0;
+const grid=document.getElementById("grid");
+const target=document.getElementById("target");
+const feedback=document.getElementById("feedback");
+const mapPanel=document.getElementById("mapPanel");
+const mapWrap=document.getElementById("mapWrap");
+const giveUpBtn=document.getElementById("giveUpBtn");
+const nextBtn=document.getElementById("nextBtn");
+
+function shuffle(a){return [...a].sort(()=>Math.random()-0.5)}
+function start(){
+  pool=shuffle(countries).slice(0,30).map(([code,name])=>({code,name,identified:false}));
+  correct=wrong=streak=score=0;
+  document.getElementById("end").classList.remove("show");
+  feedback.textContent=""; feedback.className="feedback";
+  mapPanel.classList.remove("show");
+  render();
+  nextQuestion();
+  updateStats();
+}
+function render(){
+  grid.innerHTML="";
+  pool.forEach((c,i)=>{
+    const card=document.createElement("div");
+    card.className="flag-card"+(c.identified?" identified":"");
+    card.dataset.index=i;
+    card.innerHTML=`<img src="https://flagcdn.com/w320/${c.code}.png" alt="Bandera">
+                    <div class="flag-name">${c.identified?c.name:""}</div>`;
+    card.onclick=()=>guess(i,card);
+    grid.appendChild(card);
+  });
+}
+function nextQuestion(){
+  const remaining=pool.filter(c=>!c.identified);
+  if(!remaining.length){finish();return}
+  current=remaining[Math.floor(Math.random()*remaining.length)];
+  target.textContent=current.name;
+  feedback.textContent="";
+  feedback.className="feedback";
+  mapPanel.classList.remove("show");
+  nextBtn.style.display="none";
+  giveUpBtn.style.display="";
+}
+function guess(index,card){
+  if(pool[index].identified || !current) return;
+  const chosen=pool[index];
+  if(chosen.code===current.code){
+    chosen.identified=true;
+    correct++; streak++; score+=100+Math.min(streak*10,100);
+    feedback.textContent="✓ ¡Correcto!";
+    feedback.className="feedback good";
+    card.classList.add("identified");
+    card.querySelector(".flag-name").textContent=chosen.name;
+    updateStats();
+    if(document.getElementById("showMap").checked){
+      showMap(chosen);
+      current=null;
+      giveUpBtn.style.display="none";
+      nextBtn.style.display="";
+    }else{
+      setTimeout(nextQuestion,650);
+    }
+  }else{
+    wrong++; streak=0; score=Math.max(0,score-25);
+    card.classList.remove("wrong"); void card.offsetWidth; card.classList.add("wrong");
+    feedback.textContent=document.getElementById("showWrongName").checked
+      ? `✗ Te equivocaste. Era ${chosen.name}.`
+      : "✗ Te equivocaste.";
+    feedback.className="feedback bad";
+    updateStats();
+    setTimeout(()=>card.classList.remove("wrong"),350);
+  }
+}
+function giveUp(){
+  if(!current) return;
+  const idx=pool.findIndex(c=>c.code===current.code);
+  if(idx===-1) return;
+  const c=pool[idx];
+  c.identified=true;
+  const card=grid.children[idx];
+  if(card){
+    card.classList.add("identified");
+    card.querySelector(".flag-name").textContent=c.name;
+  }
+  wrong++; streak=0;
+  feedback.textContent="🏳️ Te rendiste. Era "+c.name+".";
+  feedback.className="feedback bad";
+  updateStats();
+  showMap(c);
+  current=null;
+  giveUpBtn.style.display="none";
+  nextBtn.style.display="";
+}
+giveUpBtn.onclick=giveUp;
+nextBtn.onclick=nextQuestion;
+function updateStats(){
+  document.getElementById("correct").textContent=correct;
+  document.getElementById("wrong").textContent=wrong;
+  document.getElementById("streak").textContent=streak;
+  document.getElementById("score").textContent=score;
+}
+const TINY_COUNTRIES=new Set(["va","mc","sm","li","sg","mt","ad","bh","mv","nr","tv","ki","pw","mh","ws","lc","vc","kn","gd","dm","ag","bb","st","cv"]);
+const HUGE_COUNTRIES=new Set(["ru","ca","cn","us","br","au","in","kz","dz","cd","sa","mx","id","sd","ly","ir","mn","ar"]);
+function zoomFor(code){
+  if(TINY_COUNTRIES.has(code)) return 7;
+  if(HUGE_COUNTRIES.has(code)) return 3;
+  return 5;
+}
+let leafletMap=null, leafletMarker=null;
+function showMap(c){
+  document.getElementById("mapTitle").textContent="📍 "+c.name;
+  mapPanel.classList.add("show");
+  const xy=coords[c.code];
+  if(!xy) return;
+  const [lat,lon]=xy;
+  const zoom=zoomFor(c.code);
+  setTimeout(()=>{
+    if(!leafletMap){
+      leafletMap=L.map("leafletMap",{scrollWheelZoom:false}).setView([lat,lon],zoom);
+      L.tileLayer("https://tile.openstreetmap.de/{z}/{x}/{y}.png",{
+
+        maxZoom:18,
+        attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(leafletMap);
+      leafletMarker=L.marker([lat,lon]).addTo(leafletMap);
+    }else{
+      leafletMap.invalidateSize();
+      leafletMap.setView([lat,lon],zoom);
+      leafletMarker.setLatLng([lat,lon]);
+    }
+  },30);
+}
+function finish(){
+  current=null; target.textContent="¡Terminaste!";
+  feedback.textContent="";
+  giveUpBtn.style.display="none";
+  nextBtn.style.display="none";
+  document.getElementById("finalText").textContent=
+    `Identificaste las 30 banderas con ${wrong} error${wrong===1?"":"es"} y obtuviste ${score} puntos.`;
+  document.getElementById("end").classList.add("show");
+}
+document.getElementById("restart").onclick=start;
+document.getElementById("showMap").addEventListener("change",()=> {
+  if(!document.getElementById("showMap").checked) mapPanel.classList.remove("show");
+});
+start();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</body>
+</html>
