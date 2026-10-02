@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flag Master — V3</title>
+<title>Flag Master</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{
   --bg:#f4f6f8; --card:#fff; --text:#18212b; --muted:#6b7280;
@@ -15,13 +16,15 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica
 header{text-align:center;margin-bottom:14px}
 h1{margin:0 0 6px;font-size:30px}
 .subtitle{color:var(--muted);font-size:14px}
-.topbar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+.topbar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:12px 0;align-items:center}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 14px;font-size:14px}
+.mode-badge{background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:700}
 .question{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:center;margin-bottom:12px}
 .question .label{font-size:13px;color:var(--muted);margin-bottom:4px}
 .question .country{font-size:28px;font-weight:800}
 .feedback{min-height:24px;font-weight:700;margin-top:7px}
 .feedback.good{color:var(--good)} .feedback.bad{color:var(--bad)}
+.answer-controls{margin-top:10px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .controls{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-bottom:12px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
 .switch{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
 .switch input{width:17px;height:17px}
@@ -35,7 +38,7 @@ h1{margin:0 0 6px;font-size:30px}
 .grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}
 .flag-card{background:var(--card);border:2px solid transparent;border-radius:10px;padding:7px;cursor:pointer;transition:.15s;min-width:0;position:relative}
 .flag-card:hover{transform:translateY(-2px);border-color:#aab4c0}
-.flag-card img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:5px;box-shadow:0 1px 3px #bbb}
+.flag-card img{display:block;width:100%;aspect-ratio:3/2;object-fit:contain;background:#eef1f4;border-radius:5px;box-shadow:0 1px 3px #bbb}
 .flag-name{font-size:12px;text-align:center;font-weight:700;margin-top:6px;min-height:15px;visibility:hidden}
 .flag-card.identified{opacity:.38;cursor:default;border-color:#cbd5e1}
 .flag-card.identified .flag-name{visibility:visible}
@@ -43,9 +46,12 @@ h1{margin:0 0 6px;font-size:30px}
 @keyframes shake{25%{transform:translateX(-4px)}50%{transform:translateX(4px)}75%{transform:translateX(-3px)}}
 .end{display:none;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:25px;margin-top:14px}
 .end.show{display:block}.end h2{margin-top:0}
+.stats-table{width:100%;max-width:520px;margin:14px auto 0;border-collapse:collapse;font-size:13px;text-align:left}
+.stats-table th,.stats-table td{padding:6px 8px;border-bottom:1px solid var(--border)}
+.stats-table img{width:28px;vertical-align:middle;border-radius:3px;margin-right:6px}
+.stats-note{font-size:11px;color:var(--muted);margin-top:6px}
 button{border:0;border-radius:10px;background:var(--accent);color:white;padding:10px 17px;font-weight:700;cursor:pointer}
 button:hover{filter:brightness(.95)}
-.answer-controls{margin-top:10px;display:flex;gap:10px;justify-content:center}
 .btn-secondary{background:#e5e9ee;color:var(--text)}
 .btn-next{background:var(--good)}
 @media(max-width:900px){.grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
@@ -55,7 +61,6 @@ button:hover{filter:brightness(.95)}
   .question .country{font-size:23px} h1{font-size:25px}
 }
 </style>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 </head>
 <body>
 <div class="wrap">
@@ -65,10 +70,12 @@ button:hover{filter:brightness(.95)}
   </header>
 
   <div class="topbar">
+    <div class="mode-badge" id="modeBadge">📅 Diario</div>
     <div class="stat">Aciertos: <b id="correct">0</b>/30</div>
     <div class="stat">Errores: <b id="wrong">0</b></div>
     <div class="stat">Racha: <b id="streak">0</b></div>
     <div class="stat">Puntaje: <b id="score">0</b></div>
+    <button id="modeToggle" class="btn-secondary">🎲 Jugar aleatorio</button>
   </div>
 
   <section class="question">
@@ -103,13 +110,15 @@ button:hover{filter:brightness(.95)}
   <main id="grid" class="grid"></main>
 
   <section id="end" class="end">
-    <h2>🎉 ¡Completaste las 30!</h2>
+    <h2 id="endTitle">🎉 ¡Completaste las 30!</h2>
     <p id="finalText"></p>
+    <div id="statsBlock"></div>
     <button id="restart">Jugar de nuevo</button>
   </section>
 </div>
 
 <script>
+/* ============ Datos base ============ */
 const countries = [
 ["af","Afganistán"],["al","Albania"],["de","Alemania"],["ad","Andorra"],["ao","Angola"],
 ["ag","Antigua y Barbuda"],["sa","Arabia Saudita"],["dz","Argelia"],["ar","Argentina"],["am","Armenia"],
@@ -147,6 +156,7 @@ const countries = [
 ["ua","Ucrania"],["ug","Uganda"],["uy","Uruguay"],["uz","Uzbekistán"],["vu","Vanuatu"],["va","Ciudad del Vaticano"],
 ["ve","Venezuela"],["vn","Vietnam"],["ye","Yemen"],["dj","Yibuti"],["zm","Zambia"],["zw","Zimbabue"],["ps","Palestina"]
 ];
+const nameByCode = Object.fromEntries(countries);
 
 const coords = {
 cl:[-33,-70], ar:[-34,-64], pe:[-10,-76], bo:[-17,-65], br:[-10,-53], uy:[-33,-56], py:[-23,-58],
@@ -183,7 +193,74 @@ tg:[8.6,1.2], to:[-21.2,-175.2], tt:[10.7,-61.2], tn:[34,9], tm:[39,59.6],
 tv:[-7.5,178.6], uz:[41.4,64.6], vu:[-16,167.9], va:[41.9,12.45], ps:[31.9,35.2]
 };
 
-let pool=[], current=null, correct=0, wrong=0, streak=0, score=0;
+/* ============ Estadísticas globales (Supabase) ============
+   Completá estos dos valores cuando crees tu proyecto gratis en supabase.com
+   (Project Settings → API → "Project URL" y "anon public" key).
+   Mientras estén vacíos, el juego funciona normal y las estadísticas
+   globales simplemente no se muestran. */
+const SUPABASE_URL = "";
+const SUPABASE_ANON_KEY = "";
+const statsEnabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+async function reportStat(code, wasCorrect){
+  if(!statsEnabled) return;
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_flag_stat`,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "apikey":SUPABASE_ANON_KEY,
+        "Authorization":"Bearer "+SUPABASE_ANON_KEY
+      },
+      body:JSON.stringify({p_code:code,p_correct:wasCorrect})
+    });
+  }catch(e){ /* sin red o proyecto no configurado: no bloquea el juego */ }
+}
+async function fetchGlobalStats(){
+  if(!statsEnabled) return null;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/flag_stats?select=code,attempts,correct`,{
+      headers:{ "apikey":SUPABASE_ANON_KEY, "Authorization":"Bearer "+SUPABASE_ANON_KEY }
+    });
+    if(!res.ok) return null;
+    return await res.json();
+  }catch(e){ return null; }
+}
+
+/* ============ Utilidades: fecha, aleatoriedad con semilla, storage ============ */
+function todayKey(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function hashStr(s){
+  let h=0;
+  for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.charCodeAt(i))|0;
+  return h;
+}
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function seededShuffle(arr, rng){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(rng()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function shuffle(a){return [...a].sort(()=>Math.random()-0.5)}
+function loadJSON(key, fallback){
+  try{ const v=JSON.parse(localStorage.getItem(key)); return v===null||v===undefined?fallback:v }catch(e){ return fallback }
+}
+function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)) }catch(e){} }
+
+/* ============ Estado del juego ============ */
+let pool=[], current=null, correct=0, wrong=0, streak=0, score=0, mode="daily", dailyKey=todayKey(), currentMistake=false;
 const grid=document.getElementById("grid");
 const target=document.getElementById("target");
 const feedback=document.getElementById("feedback");
@@ -191,17 +268,63 @@ const mapPanel=document.getElementById("mapPanel");
 const mapWrap=document.getElementById("mapWrap");
 const giveUpBtn=document.getElementById("giveUpBtn");
 const nextBtn=document.getElementById("nextBtn");
+const modeBadge=document.getElementById("modeBadge");
+const modeToggle=document.getElementById("modeToggle");
 
-function shuffle(a){return [...a].sort(()=>Math.random()-0.5)}
-function start(){
-  pool=shuffle(countries).slice(0,30).map(([code,name])=>({code,name,identified:false}));
-  correct=wrong=streak=score=0;
+function dailyStorageKey(){ return "flagmaster_daily_"+dailyKey; }
+function persistDaily(){
+  if(mode!=="daily") return;
+  saveJSON(dailyStorageKey(), {
+    pool, correct, wrong, streak, score,
+    currentCode: current ? current.code : null,
+    finished: pool.every(c=>c.identified)
+  });
+}
+function updateModeUI(){
+  if(mode==="daily"){
+    modeBadge.textContent="📅 Diario · "+dailyKey;
+    modeToggle.textContent="🎲 Jugar aleatorio";
+  }else{
+    modeBadge.textContent="🎲 Modo aleatorio (práctica)";
+    modeToggle.textContent="📅 Volver al diario";
+  }
+}
+
+function start(opts={}){
+  mode = opts.mode || mode;
   document.getElementById("end").classList.remove("show");
   feedback.textContent=""; feedback.className="feedback";
   mapPanel.classList.remove("show");
+  giveUpBtn.style.display=""; nextBtn.style.display="none";
+  updateModeUI();
+
+  if(mode==="daily"){
+    dailyKey = todayKey();
+    updateModeUI();
+    const saved = loadJSON(dailyStorageKey(), null);
+    if(saved){
+      pool=saved.pool; correct=saved.correct; wrong=saved.wrong; streak=saved.streak; score=saved.score;
+      render();
+      if(saved.finished){
+        finish();
+      }else{
+        current = saved.currentCode ? pool.find(c=>c.code===saved.currentCode) : null;
+        currentMistake=false;
+        if(current){ target.textContent=current.name; } else { nextQuestion(); return; }
+      }
+      updateStats();
+      return;
+    }
+    const rng=mulberry32(hashStr("flagmaster-"+dailyKey));
+    pool=seededShuffle(countries, rng).slice(0,30).map(([code,name])=>({code,name,identified:false}));
+  }else{
+    pool=shuffle(countries).slice(0,30).map(([code,name])=>({code,name,identified:false}));
+  }
+  correct=wrong=streak=score=0;
   render();
   nextQuestion();
   updateStats();
+  persistDaily();
 }
 function render(){
   grid.innerHTML="";
@@ -219,12 +342,14 @@ function nextQuestion(){
   const remaining=pool.filter(c=>!c.identified);
   if(!remaining.length){finish();return}
   current=remaining[Math.floor(Math.random()*remaining.length)];
+  currentMistake=false;
   target.textContent=current.name;
   feedback.textContent="";
   feedback.className="feedback";
   mapPanel.classList.remove("show");
   nextBtn.style.display="none";
   giveUpBtn.style.display="";
+  persistDaily();
 }
 function guess(index,card){
   if(pool[index].identified || !current) return;
@@ -236,7 +361,9 @@ function guess(index,card){
     feedback.className="feedback good";
     card.classList.add("identified");
     card.querySelector(".flag-name").textContent=chosen.name;
+    reportStat(chosen.code, !currentMistake);
     updateStats();
+    persistDaily();
     if(document.getElementById("showMap").checked){
       showMap(chosen);
       current=null;
@@ -247,12 +374,14 @@ function guess(index,card){
     }
   }else{
     wrong++; streak=0; score=Math.max(0,score-25);
+    currentMistake=true;
     card.classList.remove("wrong"); void card.offsetWidth; card.classList.add("wrong");
     feedback.textContent=document.getElementById("showWrongName").checked
       ? `✗ Te equivocaste. Era ${chosen.name}.`
       : "✗ Te equivocaste.";
     feedback.className="feedback bad";
     updateStats();
+    persistDaily();
     setTimeout(()=>card.classList.remove("wrong"),350);
   }
 }
@@ -270,11 +399,13 @@ function giveUp(){
   wrong++; streak=0;
   feedback.textContent="🏳️ Te rendiste. Era "+c.name+".";
   feedback.className="feedback bad";
+  reportStat(c.code, false);
   updateStats();
   showMap(c);
   current=null;
   giveUpBtn.style.display="none";
   nextBtn.style.display="";
+  persistDaily();
 }
 giveUpBtn.onclick=giveUp;
 nextBtn.onclick=nextQuestion;
@@ -284,6 +415,8 @@ function updateStats(){
   document.getElementById("streak").textContent=streak;
   document.getElementById("score").textContent=score;
 }
+
+/* ============ Mapa (Leaflet + OpenStreetMap) ============ */
 const TINY_COUNTRIES=new Set(["va","mc","sm","li","sg","mt","ad","bh","mv","nr","tv","ki","pw","mh","ws","lc","vc","kn","gd","dm","ag","bb","st","cv"]);
 const HUGE_COUNTRIES=new Set(["ru","ca","cn","us","br","au","in","kz","dz","cd","sa","mx","id","sd","ly","ir","mn","ar"]);
 function zoomFor(code){
@@ -303,7 +436,6 @@ function showMap(c){
     if(!leafletMap){
       leafletMap=L.map("leafletMap",{scrollWheelZoom:false}).setView([lat,lon],zoom);
       L.tileLayer("https://tile.openstreetmap.de/{z}/{x}/{y}.png",{
-
         maxZoom:18,
         attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(leafletMap);
@@ -315,19 +447,56 @@ function showMap(c){
     }
   },30);
 }
-function finish(){
+
+/* ============ Pantalla final + estadísticas ============ */
+async function finish(){
   current=null; target.textContent="¡Terminaste!";
   feedback.textContent="";
   giveUpBtn.style.display="none";
   nextBtn.style.display="none";
-  document.getElementById("finalText").textContent=
-    `Identificaste las 30 banderas con ${wrong} error${wrong===1?"":"es"} y obtuviste ${score} puntos.`;
+  persistDaily();
+  document.getElementById("endTitle").textContent = mode==="daily" ? "🎉 ¡Desafío diario completado!" : "🎉 ¡Completaste las 30!";
+  let text = `Identificaste las 30 banderas con ${wrong} error${wrong===1?"":"es"} y obtuviste ${score} puntos.`;
+  if(mode==="daily") text += " Vuelve mañana para un nuevo desafío.";
+  document.getElementById("finalText").textContent=text;
   document.getElementById("end").classList.add("show");
+  document.getElementById("restart").style.display = mode==="daily" ? "none" : "";
+  await renderStatsBlock();
 }
-document.getElementById("restart").onclick=start;
-document.getElementById("showMap").addEventListener("change",()=> {
+async function renderStatsBlock(){
+  const el=document.getElementById("statsBlock");
+  el.innerHTML="";
+  if(!statsEnabled){
+    return;
+  }
+  const rows = await fetchGlobalStats();
+  if(!rows || !rows.length){
+    el.innerHTML=`<p class="stats-note">Todavía no hay suficientes datos globales. ¡Volvé a jugar más tarde!</p>`;
+    return;
+  }
+  const withAcc = rows
+    .filter(r=>r.attempts>0)
+    .map(r=>({...r, acc: r.correct/r.attempts}))
+    .sort((a,b)=>a.acc-b.acc)
+    .slice(0,8);
+  let html = `<h3>🌍 Las banderas que más le cuestan a todos</h3>
+    <table class="stats-table"><tr><th></th><th>País</th><th>% aciertos</th><th>Intentos</th></tr>`;
+  withAcc.forEach(r=>{
+    const name=nameByCode[r.code]||r.code;
+    html += `<tr><td><img src="https://flagcdn.com/w40/${r.code}.png" alt=""></td><td>${name}</td><td>${Math.round(r.acc*100)}%</td><td>${r.attempts}</td></tr>`;
+  });
+  html += `</table><p class="stats-note">Datos agregados de todos los jugadores.</p>`;
+  el.innerHTML=html;
+}
+
+/* ============ Controles ============ */
+document.getElementById("restart").onclick=()=>start();
+document.getElementById("showMap").addEventListener("change",()=>{
   if(!document.getElementById("showMap").checked) mapPanel.classList.remove("show");
 });
+modeToggle.onclick=()=>{
+  start({mode: mode==="daily" ? "random" : "daily"});
+};
 start();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
