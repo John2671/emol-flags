@@ -3,88 +3,223 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flag Master</title>
+<title>Flag Challenge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{
-  --bg:#f4f6f8; --card:#fff; --text:#18212b; --muted:#6b7280;
-  --accent:#2563eb; --good:#16a34a; --bad:#dc2626; --border:#d9dee5;
+  --sky:#D9EEF6; --sea:#BFE2EE; --ink:#12304A; --ink-soft:#4B6A82;
+  --blue:#1E5BD8; --blue-deep:#153F9A; --red:#E5483B; --yellow:#F5B83D; --green:#2E9E6B;
+  --line:rgba(18,48,74,.16);
+  --bg:#EEF6FA; --card:#fff; --text:var(--ink); --muted:var(--ink-soft);
+  --accent:var(--blue); --good:var(--green); --bad:var(--red); --border:var(--line);
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
-.wrap{max-width:1180px;margin:auto;padding:18px}
-header{text-align:center;margin-bottom:14px}
-h1{margin:0 0 6px;font-size:30px}
-.subtitle{color:var(--muted);font-size:14px}
-.topbar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:12px 0;align-items:center}
-.stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 14px;font-size:14px}
-.mode-badge{background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:700}
-.question{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:center;margin-bottom:12px}
-.question .label{font-size:13px;color:var(--muted);margin-bottom:4px}
-.question .country{font-size:28px;font-weight:800}
-.feedback{min-height:24px;font-weight:700;margin-top:7px}
-.feedback.good{color:var(--good)} .feedback.bad{color:var(--bad)}
+html{background:#BFE2EE}
+body{
+  margin:0;color:var(--ink);min-height:100vh;
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-optical-sizing:auto;
+  background:
+    repeating-linear-gradient(0deg,rgba(18,48,74,.05) 0 1px,transparent 1px 56px),
+    repeating-linear-gradient(90deg,rgba(18,48,74,.05) 0 1px,transparent 1px 56px),
+    linear-gradient(180deg,var(--sky) 0%,var(--sea) 100%);
+  background-attachment:fixed;
+}
+.bunting{display:block;width:100%;height:78px}
+.sw{transform-box:fill-box;transform-origin:50% 0;animation:sway 4.2s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-2.6deg)}50%{transform:rotate(2.6deg)}}
+@media(prefers-reduced-motion:reduce){.sw{animation:none}}
+.wrap{max-width:1100px;margin:auto;padding:6px 18px 40px}
+header{text-align:center;margin:4px 0 14px}
+h1{margin:0;font-size:clamp(38px,7vw,62px);font-weight:800;letter-spacing:-.028em;line-height:1}
+
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.mode-badge{background:#fff;border-radius:99px;padding:9px 16px;font-size:14px;font-weight:700;box-shadow:0 2px 0 var(--line)}
+
+.scoreboard{display:flex;align-items:flex-end;gap:12px 22px;max-width:760px;margin:0 auto 20px;flex-wrap:wrap}
+.progress-block{flex:1 1 260px}
+.progress-label{font-size:14px;margin-bottom:6px;color:var(--ink-soft)}
+.progress-label b{color:var(--ink);font-size:20px;font-weight:800}
+.progress{height:12px;background:rgba(18,48,74,.13);border-radius:99px;overflow:hidden}
+#progressFill{height:100%;width:0;background:var(--blue);border-radius:99px;transition:width .35s ease}
+.sc{text-align:center;min-width:58px}
+.sc b{display:block;font-size:26px;line-height:1;font-weight:800}
+.sc span{font-size:12px;color:var(--ink-soft)}
+
+.question{max-width:760px;margin:0 auto 18px;filter:drop-shadow(0 7px 0 rgba(18,48,74,.22))}
+.q-inner{
+  background:var(--ink);color:#fff;text-align:center;padding:22px 58px 20px;
+  clip-path:polygon(0 0,100% 0,calc(100% - 26px) 50%,100% 100%,0 100%,26px 50%);
+}
+.question .label{font-size:14px;color:#A9C4D8;margin-bottom:2px}
+.question .country{font-size:clamp(26px,5.2vw,42px);font-weight:800;letter-spacing:-.015em;line-height:1.1}
+.feedback{min-height:24px;font-weight:700;margin-top:8px}
+.feedback.good{color:#7FE3AE}
+.feedback.bad{color:#FF9B8F}
 .answer-controls{margin-top:10px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.controls{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-bottom:12px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
-.switch{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
-.switch input{width:17px;height:17px}
-.map-panel{display:none;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px;margin-bottom:12px}
+
+button{
+  font:inherit;font-weight:700;border:0;border-radius:12px;background:var(--blue);color:#fff;
+  padding:10px 18px;cursor:pointer;box-shadow:0 3px 0 var(--blue-deep);
+  transition:transform .08s,box-shadow .08s,filter .15s;
+}
+button:hover{filter:brightness(1.06)}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--blue-deep)}
+button:focus-visible,.flag-card:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+.btn-secondary{background:#fff;color:var(--ink);box-shadow:0 3px 0 rgba(18,48,74,.22)}
+.btn-secondary:active{box-shadow:0 1px 0 rgba(18,48,74,.22)}
+.q-inner .btn-secondary{background:rgba(255,255,255,.15);color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.28)}
+.btn-next{background:var(--green);box-shadow:0 3px 0 #1F7450}
+.btn-next:active{box-shadow:0 1px 0 #1F7450}
+
+.controls{display:flex;gap:12px 26px;justify-content:center;flex-wrap:wrap;margin:0 0 20px}
+.switch{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer}
+.switch input{
+  appearance:none;-webkit-appearance:none;margin:0;flex:none;position:relative;cursor:pointer;
+  width:40px;height:23px;border-radius:99px;background:#9DB5C7;transition:background .2s;
+}
+.switch input::after{
+  content:"";position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .2s;
+}
+.switch input:checked{background:var(--blue)}
+.switch input:checked::after{transform:translateX(17px)}
+.switch input:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+
+.map-panel{display:none;max-width:760px;margin:0 auto 20px;background:#fff;border-radius:18px;padding:12px;box-shadow:0 3px 0 var(--line),0 12px 28px rgba(18,48,74,.12)}
 .map-panel.show{display:block}
-.map-title{text-align:center;font-weight:800;margin-bottom:7px}
-.map-wrap{position:relative;max-width:760px;margin:auto;border-radius:10px;overflow:hidden;background:#eef2f7}
+.map-title{text-align:center;font-weight:800;font-size:18px;margin:2px 0 10px}
+.map-wrap{position:relative;border-radius:12px;overflow:hidden;background:#eef2f7}
 #leafletMap{width:100%;height:320px}
-@media(max-width:600px){#leafletMap{height:230px}}
-.map-note{text-align:center;color:var(--muted);font-size:11px;margin-top:5px}
-.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}
-.flag-card{background:var(--card);border:2px solid transparent;border-radius:10px;padding:7px;cursor:pointer;transition:.15s;min-width:0;position:relative}
-.flag-card:hover{transform:translateY(-2px);border-color:#aab4c0}
-.flag-card img{display:block;width:100%;aspect-ratio:3/2;object-fit:contain;background:#eef1f4;border-radius:5px;box-shadow:0 1px 3px #bbb}
-.flag-name{font-size:12px;text-align:center;font-weight:700;margin-top:6px;min-height:15px;visibility:hidden}
-.flag-card.identified{opacity:.38;cursor:default;border-color:#cbd5e1}
+.map-note{text-align:center;color:var(--ink-soft);font-size:12px;margin-top:8px}
+
+.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px 14px}
+.flag-card{position:relative;min-width:0;cursor:pointer;transition:transform .15s}
+.flag-card:hover{transform:translateY(-3px)}
+.flag-card img{
+  display:block;width:100%;aspect-ratio:3/2;object-fit:contain;background:#fff;border-radius:6px;
+  box-shadow:0 2px 0 rgba(18,48,74,.2),0 8px 16px rgba(18,48,74,.15);
+}
+.flag-name{font-size:13px;text-align:center;font-weight:700;margin-top:8px;min-height:16px;visibility:hidden}
+.flag-card.identified{opacity:.5;cursor:default}
+.flag-card.identified:hover{transform:none}
 .flag-card.identified .flag-name{visibility:visible}
-.flag-card.wrong{border-color:var(--bad);animation:shake .24s linear}
+.flag-card.wrong{animation:shake .24s linear}
+.flag-card.wrong img{outline:3px solid var(--red);outline-offset:2px}
 @keyframes shake{25%{transform:translateX(-4px)}50%{transform:translateX(4px)}75%{transform:translateX(-3px)}}
-.end{display:none;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:25px;margin-top:14px}
-.end.show{display:block}.end h2{margin-top:0}
-.stats-table{width:100%;max-width:520px;margin:14px auto 0;border-collapse:collapse;font-size:13px;text-align:left}
-.stats-table th,.stats-table td{padding:6px 8px;border-bottom:1px solid var(--border)}
-.stats-table img{width:28px;vertical-align:middle;border-radius:3px;margin-right:6px}
-.stats-note{font-size:11px;color:var(--muted);margin-top:6px}
-button{border:0;border-radius:10px;background:var(--accent);color:white;padding:10px 17px;font-weight:700;cursor:pointer}
-button:hover{filter:brightness(.95)}
-.btn-secondary{background:#e5e9ee;color:var(--text)}
-.btn-next{background:var(--good)}
+
+.end{display:none;text-align:center;background:#fff;border-radius:18px;padding:26px;margin-top:22px;box-shadow:0 3px 0 var(--line),0 12px 28px rgba(18,48,74,.12)}
+.end.show{display:block}
+.end h2{margin:0 0 8px;font-size:26px;font-weight:800}
+.end-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+
+.stats-table{width:100%;max-width:520px;margin:10px auto 0;border-collapse:collapse;font-size:14px;text-align:left}
+.stats-table th{font-size:12px;font-weight:600;color:var(--ink-soft)}
+.stats-table th,.stats-table td{padding:7px 8px;border-bottom:1px solid var(--line)}
+.stats-table img{width:30px;vertical-align:middle;border-radius:3px;margin-right:6px;box-shadow:0 1px 3px rgba(18,48,74,.3)}
+.stats-note{font-size:12px;color:var(--ink-soft);margin-top:8px}
+
+.modal{display:none;position:fixed;inset:0;background:rgba(18,48,74,.6);z-index:1000;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(2px)}
+.modal.show{display:flex}
+.modal-card{background:#fff;border-radius:20px;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:22px;position:relative;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.modal-card h2{margin:0 0 4px;font-size:24px;font-weight:800}
+.modal-card h3{margin:20px 0 8px;font-size:16px;font-weight:700}
+.modal-close{position:absolute;top:12px;right:12px;background:transparent;color:var(--ink-soft);padding:6px 10px;font-size:16px;box-shadow:none}
+.modal-close:active{box-shadow:none;transform:none}
+.tabs{display:flex;gap:4px;margin:12px 0 16px;background:#E3EEF4;border-radius:14px;padding:4px}
+.tab{flex:1;background:transparent;color:var(--ink);box-shadow:none;padding:8px}
+.tab:active{box-shadow:none;transform:none}
+.tab.active,.tab.active:active{background:#fff;box-shadow:0 1px 3px rgba(18,48,74,.25)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{background:var(--bg);border-radius:12px;padding:12px 4px;text-align:center}
+.kpi b{display:block;font-size:24px;font-weight:800}
+.kpi span{font-size:12px;color:var(--ink-soft)}
+.bar-row{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:13px}
+.bar-label{width:34px;text-align:right;color:var(--ink-soft)}
+.bar-track{flex:1;background:#E3EEF4;border-radius:6px;height:20px;overflow:hidden}
+.bar{height:100%;background:#9DB5C7;border-radius:6px}
+.bar.mine{background:var(--blue)}
+.bar-val{width:34px;color:var(--ink-soft);font-size:12px}
+
 @media(max-width:900px){.grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
 @media(max-width:600px){
-  .wrap{padding:10px}.grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
-  .flag-card{padding:5px;border-radius:8px}.flag-name{font-size:10px}
-  .question .country{font-size:23px} h1{font-size:25px}
+  .bunting{height:58px}
+  .wrap{padding:4px 12px 32px}
+  .grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 8px}
+  .flag-name{font-size:11px}
+  .q-inner{padding:18px 40px 16px;clip-path:polygon(0 0,100% 0,calc(100% - 18px) 50%,100% 100%,0 100%,18px 50%)}
+  .progress-block{flex-basis:100%}
+  .sc{flex:1}
+  #leafletMap{height:230px}
 }
 </style>
 </head>
 <body>
+<svg class="bunting" viewBox="0 0 1200 70" preserveAspectRatio="xMidYMin slice" aria-hidden="true">
+      <path d="M-20 4 Q600 52 1220 4" fill="none" stroke="#12304A" stroke-width="1.6" stroke-linecap="round"/>
+      <g><g class="sw" style="animation-duration:3.80s;animation-delay:0.00s"><path d="M-13.5 4.5 L16.3 6.7 L1.4 39.6 Z" fill="#E5483B" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M-5.2 5.1 L7.9 6.1 L1.4 22.6 Z" fill="#FFFFFF"/></g></g>
+      <g><g class="sw" style="animation-duration:4.15s;animation-delay:4.17s"><path d="M29.3 7.7 L59.0 9.7 L44.1 48.7 Z" fill="#F5B83D" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:4.50s;animation-delay:3.74s"><path d="M72.0 10.6 L101.8 12.5 L86.9 45.6 Z" fill="#1E5BD8" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M80.3 11.1 L93.4 12.0 L86.9 28.6 Z" fill="#FFFFFF"/></g></g>
+      <g><g class="sw" style="animation-duration:4.85s;animation-delay:3.31s"><path d="M114.8 13.3 L144.5 15.0 L129.7 54.2 Z" fill="#FFFFFF" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:5.20s;animation-delay:2.88s"><path d="M157.5 15.8 L187.3 17.4 L172.4 50.6 Z" fill="#2E9E6B" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M165.9 16.2 L179.0 16.9 L172.4 33.6 Z" fill="#F5B83D"/></g></g>
+      <g><g class="sw" style="animation-duration:3.80s;animation-delay:2.45s"><path d="M200.3 18.0 L230.1 19.5 L215.2 58.8 Z" fill="#12304A" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:4.15s;animation-delay:2.02s"><path d="M243.1 20.0 L272.8 21.3 L257.9 54.7 Z" fill="#E5483B" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M251.4 20.4 L264.5 21.0 L257.9 37.7 Z" fill="#FFFFFF"/></g></g>
+      <g><g class="sw" style="animation-duration:4.50s;animation-delay:1.59s"><path d="M285.8 21.8 L315.6 22.9 L300.7 62.4 Z" fill="#F5B83D" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:4.85s;animation-delay:1.16s"><path d="M328.6 23.4 L358.3 24.4 L343.4 57.9 Z" fill="#1E5BD8" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M336.9 23.7 L350.0 24.1 L343.4 40.9 Z" fill="#FFFFFF"/></g></g>
+      <g><g class="sw" style="animation-duration:5.20s;animation-delay:0.73s"><path d="M371.3 24.7 L401.1 25.5 L386.2 65.1 Z" fill="#FFFFFF" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:3.80s;animation-delay:0.30s"><path d="M414.1 25.8 L443.8 26.5 L429.0 60.2 Z" fill="#2E9E6B" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M422.4 26.0 L435.5 26.3 L429.0 43.2 Z" fill="#F5B83D"/></g></g>
+      <g><g class="sw" style="animation-duration:4.15s;animation-delay:4.47s"><path d="M456.8 26.7 L486.6 27.2 L471.7 67.0 Z" fill="#12304A" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:4.50s;animation-delay:4.04s"><path d="M499.6 27.4 L529.4 27.7 L514.5 61.5 Z" fill="#E5483B" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M507.9 27.5 L521.0 27.6 L514.5 44.5 Z" fill="#FFFFFF"/></g></g>
+      <g><g class="sw" style="animation-duration:4.85s;animation-delay:3.61s"><path d="M542.4 27.8 L572.1 28.0 L557.2 67.9 Z" fill="#F5B83D" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:5.20s;animation-delay:3.18s"><path d="M585.1 28.0 L614.9 28.0 L600.0 62.0 Z" fill="#1E5BD8" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M593.5 28.0 L606.5 28.0 L600.0 45.0 Z" fill="#FFFFFF"/></g></g>
+      <g><g class="sw" style="animation-duration:3.80s;animation-delay:2.75s"><path d="M627.9 28.0 L657.6 27.8 L642.8 67.9 Z" fill="#FFFFFF" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:4.15s;animation-delay:2.32s"><path d="M670.6 27.7 L700.4 27.4 L685.5 61.5 Z" fill="#2E9E6B" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M679.0 27.6 L692.1 27.5 L685.5 44.5 Z" fill="#F5B83D"/></g></g>
+      <g><g class="sw" style="animation-duration:4.50s;animation-delay:1.89s"><path d="M713.4 27.2 L743.2 26.7 L728.3 67.0 Z" fill="#12304A" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:4.85s;animation-delay:1.46s"><path d="M756.2 26.5 L785.9 25.8 L771.0 60.2 Z" fill="#E5483B" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M764.5 26.3 L777.6 26.0 L771.0 43.2 Z" fill="#FFFFFF"/></g></g>
+      <g><g class="sw" style="animation-duration:5.20s;animation-delay:1.03s"><path d="M798.9 25.5 L828.7 24.7 L813.8 65.1 Z" fill="#F5B83D" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:3.80s;animation-delay:0.60s"><path d="M841.7 24.4 L871.4 23.4 L856.6 57.9 Z" fill="#1E5BD8" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M850.0 24.1 L863.1 23.7 L856.6 40.9 Z" fill="#FFFFFF"/></g></g>
+      <g><g class="sw" style="animation-duration:4.15s;animation-delay:0.17s"><path d="M884.4 22.9 L914.2 21.8 L899.3 62.4 Z" fill="#FFFFFF" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:4.50s;animation-delay:4.34s"><path d="M927.2 21.3 L956.9 20.0 L942.1 54.7 Z" fill="#2E9E6B" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M935.5 21.0 L948.6 20.4 L942.1 37.7 Z" fill="#F5B83D"/></g></g>
+      <g><g class="sw" style="animation-duration:4.85s;animation-delay:3.91s"><path d="M969.9 19.5 L999.7 18.0 L984.8 58.8 Z" fill="#12304A" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:5.20s;animation-delay:3.48s"><path d="M1012.7 17.4 L1042.5 15.8 L1027.6 50.6 Z" fill="#E5483B" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M1021.0 16.9 L1034.1 16.2 L1027.6 33.6 Z" fill="#FFFFFF"/></g></g>
+      <g><g class="sw" style="animation-duration:3.80s;animation-delay:3.05s"><path d="M1055.5 15.0 L1085.2 13.3 L1070.3 54.2 Z" fill="#F5B83D" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:4.15s;animation-delay:2.62s"><path d="M1098.2 12.5 L1128.0 10.6 L1113.1 45.6 Z" fill="#1E5BD8" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M1106.6 12.0 L1119.7 11.1 L1113.1 28.6 Z" fill="#FFFFFF"/></g></g>
+      <g><g class="sw" style="animation-duration:4.50s;animation-delay:2.19s"><path d="M1141.0 9.7 L1170.7 7.7 L1155.9 48.7 Z" fill="#FFFFFF" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/></g></g>
+      <g><g class="sw" style="animation-duration:4.85s;animation-delay:1.76s"><path d="M1183.7 6.7 L1213.5 4.5 L1198.6 39.6 Z" fill="#2E9E6B" stroke="#12304A" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/><path d="M1192.1 6.1 L1205.2 5.1 L1198.6 22.6 Z" fill="#F5B83D"/></g></g>
+</svg>
 <div class="wrap">
   <header>
-    <h1>🌎 Flag Master</h1>
-    <div class="subtitle">Encuentra las 30 banderas. Las acertadas quedan visibles para ayudarte a aprender.</div>
+    <h1>Flag Challenge</h1>
   </header>
 
-  <div class="topbar">
-    <div class="mode-badge" id="modeBadge">📅 Diario</div>
-    <div class="stat">Aciertos: <b id="correct">0</b>/30</div>
-    <div class="stat">Errores: <b id="wrong">0</b></div>
-    <div class="stat">Racha: <b id="streak">0</b></div>
-    <div class="stat">Puntaje: <b id="score">0</b></div>
-    <button id="modeToggle" class="btn-secondary">🎲 Jugar aleatorio</button>
+  <div class="actions">
+    <div class="mode-badge" id="modeBadge">Desafío diario</div>
+    <button id="modeToggle" class="btn-secondary">Jugar aleatorio</button>
+    <button id="statsBtn" class="btn-secondary">Estadísticas</button>
+  </div>
+
+  <div class="scoreboard">
+    <div class="progress-block">
+      <div class="progress-label"><b id="correct">0</b>/30 aciertos</div>
+      <div class="progress"><div id="progressFill"></div></div>
+    </div>
+    <div class="sc"><b id="wrong">0</b><span>errores</span></div>
+    <div class="sc"><b id="streak">0</b><span>racha</span></div>
+    <div class="sc"><b id="score">0</b><span>puntos</span></div>
   </div>
 
   <section class="question">
-    <div class="label">Busca la bandera de:</div>
-    <div class="country" id="target">—</div>
-    <div id="feedback" class="feedback"></div>
-    <div class="answer-controls">
-      <button id="giveUpBtn" class="btn-secondary">Me rindo 🏳️</button>
-      <button id="nextBtn" class="btn-next" style="display:none">Siguiente ➜</button>
+    <div class="q-inner">
+      <div class="label">Busca la bandera de</div>
+      <div class="country" id="target">—</div>
+      <div id="feedback" class="feedback"></div>
+      <div class="answer-controls">
+        <button id="giveUpBtn" class="btn-secondary">Me rindo</button>
+        <button id="nextBtn" class="btn-next" style="display:none">Siguiente</button>
+      </div>
     </div>
   </section>
 
@@ -112,9 +247,24 @@ button:hover{filter:brightness(.95)}
   <section id="end" class="end">
     <h2 id="endTitle">🎉 ¡Completaste las 30!</h2>
     <p id="finalText"></p>
-    <div id="statsBlock"></div>
-    <button id="restart">Jugar de nuevo</button>
+    <div class="end-actions">
+      <button id="shareBtn">Compartir resultado</button>
+      <button id="endStatsBtn" class="btn-secondary">Ver estadísticas</button>
+      <button id="restart">Jugar de nuevo</button>
+    </div>
   </section>
+</div>
+
+<div id="statsModal" class="modal">
+  <div class="modal-card">
+    <button id="statsClose" class="modal-close" aria-label="Cerrar">✕</button>
+    <h2>Estadísticas</h2>
+    <div class="tabs">
+      <button class="tab active" data-tab="personal">Personales</button>
+      <button class="tab" data-tab="global">Globales</button>
+    </div>
+    <div id="statsBody"></div>
+  </div>
 </div>
 
 <script>
@@ -193,45 +343,34 @@ tg:[8.6,1.2], to:[-21.2,-175.2], tt:[10.7,-61.2], tn:[34,9], tm:[39,59.6],
 tv:[-7.5,178.6], uz:[41.4,64.6], vu:[-16,167.9], va:[41.9,12.45], ps:[31.9,35.2]
 };
 
-/* ============ Estadísticas globales (Supabase) ============
-   Completá estos dos valores cuando crees tu proyecto gratis en supabase.com
-   (Project Settings → API → "Project URL" y "anon public" key).
-   Mientras estén vacíos, el juego funciona normal y las estadísticas
-   globales simplemente no se muestran. */
-const SUPABASE_URL = "";
-const SUPABASE_ANON_KEY = "";
-const statsEnabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+/* ============ Estadísticas globales (Supabase) ============ */
+const SUPABASE_URL = "https://vpvzgitfbpicawaffzho.supabase.co";
+const SUPABASE_KEY = "sb_publishable_-47m_5LWkn1e-0e7zMA8gg_oCen71b9"; // llave pública (publishable), segura en el navegador
+const statsEnabled = Boolean(SUPABASE_URL && SUPABASE_KEY);
+const sbHeaders = {"Content-Type":"application/json","apikey":SUPABASE_KEY};
 
-async function reportStat(code, wasCorrect){
+async function sbRpc(name, body){
   if(!statsEnabled) return;
   try{
-    await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_flag_stat`,{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "apikey":SUPABASE_ANON_KEY,
-        "Authorization":"Bearer "+SUPABASE_ANON_KEY
-      },
-      body:JSON.stringify({p_code:code,p_correct:wasCorrect})
-    });
-  }catch(e){ /* sin red o proyecto no configurado: no bloquea el juego */ }
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{method:"POST",headers:sbHeaders,body:JSON.stringify(body)});
+  }catch(e){ /* sin red: no bloquea el juego */ }
 }
-async function fetchGlobalStats(){
+async function sbGet(path){
   if(!statsEnabled) return null;
   try{
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/flag_stats?select=code,attempts,correct`,{
-      headers:{ "apikey":SUPABASE_ANON_KEY, "Authorization":"Bearer "+SUPABASE_ANON_KEY }
-    });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{headers:sbHeaders});
     if(!res.ok) return null;
     return await res.json();
   }catch(e){ return null; }
 }
+function reportStat(code, firstTry){ sbRpc("increment_flag_stat",{p_code:code,p_correct:firstTry}); }
+function reportDaily(day, errors){ return sbRpc("increment_daily_result",{p_day:day,p_errors:errors}); }
 
 /* ============ Utilidades: fecha, aleatoriedad con semilla, storage ============ */
-function todayKey(){
-  const d=new Date();
+function dateKey(d){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
+function todayKey(){ return dateKey(new Date()); }
 function hashStr(s){
   let h=0;
   for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.charCodeAt(i))|0;
@@ -282,11 +421,12 @@ function persistDaily(){
 }
 function updateModeUI(){
   if(mode==="daily"){
-    modeBadge.textContent="📅 Diario · "+dailyKey;
-    modeToggle.textContent="🎲 Jugar aleatorio";
+    const d=new Date(dailyKey+"T00:00:00");
+    modeBadge.textContent="Desafío del "+d.toLocaleDateString("es",{day:"numeric",month:"long"});
+    modeToggle.textContent="Jugar aleatorio";
   }else{
-    modeBadge.textContent="🎲 Modo aleatorio (práctica)";
-    modeToggle.textContent="📅 Volver al diario";
+    modeBadge.textContent="Modo aleatorio";
+    modeToggle.textContent="Volver al diario";
   }
 }
 
@@ -334,13 +474,15 @@ function render(){
     card.dataset.index=i;
     card.innerHTML=`<img src="https://flagcdn.com/w320/${c.code}.png" alt="Bandera">
                     <div class="flag-name">${c.identified?c.name:""}</div>`;
+    card.tabIndex=0; card.setAttribute("role","button");
     card.onclick=()=>guess(i,card);
+    card.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); guess(i,card); } });
     grid.appendChild(card);
   });
 }
 function nextQuestion(){
   const remaining=pool.filter(c=>!c.identified);
-  if(!remaining.length){finish();return}
+  if(!remaining.length){finish(true);return}
   current=remaining[Math.floor(Math.random()*remaining.length)];
   currentMistake=false;
   target.textContent=current.name;
@@ -361,7 +503,7 @@ function guess(index,card){
     feedback.className="feedback good";
     card.classList.add("identified");
     card.querySelector(".flag-name").textContent=chosen.name;
-    reportStat(chosen.code, !currentMistake);
+    recordFlag(chosen.code, !currentMistake);
     updateStats();
     persistDaily();
     if(document.getElementById("showMap").checked){
@@ -397,9 +539,9 @@ function giveUp(){
     card.querySelector(".flag-name").textContent=c.name;
   }
   wrong++; streak=0;
-  feedback.textContent="🏳️ Te rendiste. Era "+c.name+".";
+  feedback.textContent="Te rendiste. Era "+c.name+".";
   feedback.className="feedback bad";
-  reportStat(c.code, false);
+  recordFlag(c.code, false);
   updateStats();
   showMap(c);
   current=null;
@@ -414,6 +556,8 @@ function updateStats(){
   document.getElementById("wrong").textContent=wrong;
   document.getElementById("streak").textContent=streak;
   document.getElementById("score").textContent=score;
+  const done=pool.filter(c=>c.identified).length;
+  document.getElementById("progressFill").style.width=(done/30*100)+"%";
 }
 
 /* ============ Mapa (Leaflet + OpenStreetMap) ============ */
@@ -448,8 +592,116 @@ function showMap(c){
   },30);
 }
 
-/* ============ Pantalla final + estadísticas ============ */
-async function finish(){
+/* ============ Estadísticas personales y globales ============ */
+const HIST_KEY="flagmaster_history", FLAGP_KEY="flagmaster_flagpersonal";
+
+function recordFlag(code, firstTry){
+  reportStat(code, firstTry);
+  const s=loadJSON(FLAGP_KEY,{});
+  const e=s[code]||{a:0,c:0};
+  e.a++; if(firstTry) e.c++;
+  s[code]=e; saveJSON(FLAGP_KEY,s);
+}
+async function recordDailyIfNeeded(){
+  if(mode!=="daily") return;
+  const hist=loadJSON(HIST_KEY,{});
+  if(hist[dailyKey]) return;
+  hist[dailyKey]={wrong,score};
+  saveJSON(HIST_KEY,hist);
+  await reportDaily(dailyKey, wrong);
+}
+function dayStreak(hist){
+  let n=0; const cur=new Date();
+  if(!hist[dateKey(cur)]) cur.setDate(cur.getDate()-1);
+  while(hist[dateKey(cur)]){ n++; cur.setDate(cur.getDate()-1); }
+  return n;
+}
+function flagTable(rows, thirdLabel){
+  return `<table class="stats-table"><tr><th></th><th>País</th><th>% a la primera</th><th>${thirdLabel}</th></tr>`
+    + rows.map(r=>`<tr><td><img src="https://flagcdn.com/w40/${r.code}.png" alt=""></td><td>${nameByCode[r.code]||r.code}</td><td>${r.pct}%</td><td>${r.n}</td></tr>`).join("")
+    + `</table>`;
+}
+function renderPersonal(){
+  const hist=loadJSON(HIST_KEY,{});
+  const days=Object.keys(hist);
+  const fp=loadJSON(FLAGP_KEY,{});
+  const seen=Object.keys(fp).length;
+  if(!days.length && !seen){
+    return `<p class="stats-note">Todavía no tienes partidas guardadas. ¡Juega el desafío de hoy!</p>`;
+  }
+  const best=days.length ? Math.max(...days.map(d=>hist[d].score)) : 0;
+  const avgErr=days.length ? (days.reduce((s,d)=>s+hist[d].wrong,0)/days.length).toFixed(1) : "–";
+  const perfect=days.filter(d=>hist[d].wrong===0).length;
+  let html=`<div class="kpis">
+    <div class="kpi"><b>${days.length}</b><span>Días jugados</span></div>
+    <div class="kpi"><b>${dayStreak(hist)}</b><span>Racha de días</span></div>
+    <div class="kpi"><b>${perfect}</b><span>Días sin errores</span></div>
+    <div class="kpi"><b>${best}</b><span>Mejor puntaje</span></div>
+    <div class="kpi"><b>${avgErr}</b><span>Errores por día</span></div>
+    <div class="kpi"><b>${seen}/${countries.length}</b><span>Banderas vistas</span></div>
+  </div>`;
+  const hard=Object.entries(fp)
+    .filter(([,e])=>e.c<e.a)
+    .map(([code,e])=>({code,n:e.a,pct:Math.round(e.c/e.a*100)}))
+    .sort((a,b)=>a.pct-b.pct||b.n-a.n).slice(0,5);
+  if(hard.length) html+=`<h3>Las banderas que más te cuestan</h3>`+flagTable(hard,"Veces");
+  html+=`<p class="stats-note">Guardado en este navegador. Si borras los datos del sitio o cambias de dispositivo, se reinicia.</p>`;
+  return html;
+}
+const BUCKETS=[["0",0,0],["1",1,1],["2",2,2],["3",3,3],["4-5",4,5],["6-9",6,9],["10+",10,999]];
+async function renderGlobal(){
+  if(!statsEnabled) return `<p class="stats-note">Estadísticas globales no disponibles.</p>`;
+  const [dist,flags]=await Promise.all([
+    sbGet(`daily_results?day=eq.${dailyKey}&select=errors,players`),
+    sbGet("flag_stats?select=code,attempts,correct")
+  ]);
+  if(dist===null && flags===null){
+    return `<p class="stats-note">No se pudieron cargar las estadísticas. Revisa tu conexión e inténtalo de nuevo.</p>`;
+  }
+  const mine=loadJSON(HIST_KEY,{})[dailyKey];
+  let html=`<h3>Resultados de hoy (${dailyKey})</h3>`;
+  const rowsD=dist||[];
+  const total=rowsD.reduce((s,r)=>s+r.players,0);
+  if(!total){
+    html+=`<p class="stats-note">Aún no hay resultados de hoy.</p>`;
+  }else{
+    const counts=BUCKETS.map(([l,lo,hi])=>({l,lo,hi,n:rowsD.filter(r=>r.errors>=lo&&r.errors<=hi).reduce((s,r)=>s+r.players,0)}));
+    const max=Math.max(...counts.map(c=>c.n),1);
+    html+=counts.map(c=>{
+      const isMine=mine && mine.wrong>=c.lo && mine.wrong<=c.hi;
+      const w=c.n ? Math.max(c.n/max*100,3) : 0;
+      return `<div class="bar-row"><span class="bar-label">${c.l}</span><div class="bar-track"><div class="bar ${isMine?"mine":""}" style="width:${w}%"></div></div><span class="bar-val">${c.n}</span></div>`;
+    }).join("");
+    html+=`<p class="stats-note">Errores por jugador · ${total} jugador${total===1?"":"es"} hoy${mine?` · tú: ${mine.wrong}`:""}</p>`;
+    if(mine && total>1){
+      const worse=rowsD.filter(r=>r.errors>mine.wrong).reduce((s,r)=>s+r.players,0);
+      html+=`<p>Tuviste menos errores que el <b>${Math.round(worse/total*100)}%</b> de los jugadores.</p>`;
+    }
+  }
+  const rows=(flags||[]).filter(r=>r.attempts>0)
+    .map(r=>({code:r.code,n:r.attempts,pct:Math.round(r.correct/r.attempts*100)}))
+    .sort((a,b)=>a.pct-b.pct||b.n-a.n).slice(0,8);
+  if(rows.length) html+=`<h3>Las banderas que más le cuestan a todos</h3>`+flagTable(rows,"Intentos")
+    +`<p class="stats-note">% de veces que se acertó a la primera, entre todos los jugadores.</p>`;
+  return html;
+}
+let statsTab="personal";
+async function openStats(tab){
+  statsTab=tab||statsTab;
+  const modal=document.getElementById("statsModal");
+  modal.classList.add("show");
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===statsTab));
+  const body=document.getElementById("statsBody");
+  const wanted=statsTab;
+  if(wanted==="personal"){ body.innerHTML=renderPersonal(); return; }
+  body.innerHTML=`<p class="stats-note">Cargando…</p>`;
+  const html=await renderGlobal();
+  if(statsTab===wanted && modal.classList.contains("show")) body.innerHTML=html;
+}
+function closeStats(){ document.getElementById("statsModal").classList.remove("show"); }
+
+/* ============ Pantalla final ============ */
+async function finish(fromPlay=false){
   current=null; target.textContent="¡Terminaste!";
   feedback.textContent="";
   giveUpBtn.style.display="none";
@@ -461,32 +713,9 @@ async function finish(){
   document.getElementById("finalText").textContent=text;
   document.getElementById("end").classList.add("show");
   document.getElementById("restart").style.display = mode==="daily" ? "none" : "";
-  await renderStatsBlock();
-}
-async function renderStatsBlock(){
-  const el=document.getElementById("statsBlock");
-  el.innerHTML="";
-  if(!statsEnabled){
-    return;
-  }
-  const rows = await fetchGlobalStats();
-  if(!rows || !rows.length){
-    el.innerHTML=`<p class="stats-note">Todavía no hay suficientes datos globales. ¡Volvé a jugar más tarde!</p>`;
-    return;
-  }
-  const withAcc = rows
-    .filter(r=>r.attempts>0)
-    .map(r=>({...r, acc: r.correct/r.attempts}))
-    .sort((a,b)=>a.acc-b.acc)
-    .slice(0,8);
-  let html = `<h3>🌍 Las banderas que más le cuestan a todos</h3>
-    <table class="stats-table"><tr><th></th><th>País</th><th>% aciertos</th><th>Intentos</th></tr>`;
-  withAcc.forEach(r=>{
-    const name=nameByCode[r.code]||r.code;
-    html += `<tr><td><img src="https://flagcdn.com/w40/${r.code}.png" alt=""></td><td>${name}</td><td>${Math.round(r.acc*100)}%</td><td>${r.attempts}</td></tr>`;
-  });
-  html += `</table><p class="stats-note">Datos agregados de todos los jugadores.</p>`;
-  el.innerHTML=html;
+  document.getElementById("shareBtn").style.display = mode==="daily" ? "" : "none";
+  await recordDailyIfNeeded();
+  if(fromPlay && mode==="daily") openStats("global");
 }
 
 /* ============ Controles ============ */
@@ -496,6 +725,21 @@ document.getElementById("showMap").addEventListener("change",()=>{
 });
 modeToggle.onclick=()=>{
   start({mode: mode==="daily" ? "random" : "daily"});
+};
+document.getElementById("statsBtn").onclick=()=>openStats("personal");
+document.getElementById("endStatsBtn").onclick=()=>openStats(mode==="daily" ? "global" : "personal");
+document.getElementById("statsClose").onclick=closeStats;
+document.getElementById("statsModal").addEventListener("click",e=>{ if(e.target.id==="statsModal") closeStats(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeStats(); });
+document.querySelectorAll(".tab").forEach(t=>{ t.onclick=()=>openStats(t.dataset.tab); });
+document.getElementById("shareBtn").onclick=async()=>{
+  const b=document.getElementById("shareBtn");
+  const txt=`Flag Challenge ${dailyKey}\n${wrong===0?"🏆 Sin errores":"❌ "+wrong+" error"+(wrong===1?"":"es")} · ${score} pts\n${location.href.split("#")[0]}`;
+  try{
+    await navigator.clipboard.writeText(txt);
+    b.textContent="✓ ¡Copiado!";
+    setTimeout(()=>{ b.textContent="Compartir resultado"; },1800);
+  }catch(e){ prompt("Copia tu resultado:",txt); }
 };
 start();
 </script>
