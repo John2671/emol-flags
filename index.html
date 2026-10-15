@@ -59,7 +59,9 @@ h1{margin:0;font-size:clamp(38px,7vw,62px);font-weight:800;letter-spacing:-.028e
 .feedback{min-height:24px;font-weight:700;margin-top:8px}
 .feedback.good{color:#7FE3AE}
 .feedback.bad{color:#FF9B8F}
-.answer-controls{margin-top:10px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.lives{font-size:20px;letter-spacing:5px;color:#FF9B8F;margin-top:6px;line-height:1}
+.lives .off{opacity:.28}
+.answer-controls{min-height:44px;margin-top:10px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 
 button{
   font:inherit;font-weight:700;border:0;border-radius:12px;background:var(--blue);color:#fff;
@@ -107,6 +109,8 @@ button:focus-visible,.flag-card:focus-visible{outline:3px solid var(--yellow);ou
 .flag-card.identified{opacity:.5;cursor:default}
 .flag-card.identified:hover{transform:none}
 .flag-card.identified .flag-name{visibility:visible}
+.flag-card.failed{opacity:.55}
+.flag-card.failed img{filter:grayscale(1)}
 .flag-card.wrong{animation:shake .24s linear}
 .flag-card.wrong img{outline:3px solid var(--red);outline-offset:2px}
 @keyframes shake{25%{transform:translateX(-4px)}50%{transform:translateX(4px)}75%{transform:translateX(-3px)}}
@@ -215,9 +219,9 @@ button:focus-visible,.flag-card:focus-visible{outline:3px solid var(--yellow);ou
     <div class="q-inner">
       <div class="label">Busca la bandera de</div>
       <div class="country" id="target">—</div>
+      <div class="lives" id="lives" aria-label="Intentos restantes"></div>
       <div id="feedback" class="feedback"></div>
       <div class="answer-controls">
-        <button id="giveUpBtn" class="btn-secondary">Me rindo</button>
         <button id="nextBtn" class="btn-next" style="display:none">Siguiente</button>
       </div>
     </div>
@@ -399,13 +403,13 @@ function loadJSON(key, fallback){
 function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)) }catch(e){} }
 
 /* ============ Estado del juego ============ */
-let pool=[], current=null, correct=0, wrong=0, streak=0, score=0, mode="daily", dailyKey=todayKey(), currentMistake=false;
+let pool=[], current=null, correct=0, wrong=0, streak=0, score=0, mode="daily", dailyKey=todayKey();
 const grid=document.getElementById("grid");
 const target=document.getElementById("target");
 const feedback=document.getElementById("feedback");
 const mapPanel=document.getElementById("mapPanel");
 const mapWrap=document.getElementById("mapWrap");
-const giveUpBtn=document.getElementById("giveUpBtn");
+const livesEl=document.getElementById("lives");
 const nextBtn=document.getElementById("nextBtn");
 const modeBadge=document.getElementById("modeBadge");
 const modeToggle=document.getElementById("modeToggle");
@@ -435,7 +439,7 @@ function start(opts={}){
   document.getElementById("end").classList.remove("show");
   feedback.textContent=""; feedback.className="feedback";
   mapPanel.classList.remove("show");
-  giveUpBtn.style.display=""; nextBtn.style.display="none";
+  nextBtn.style.display="none";
   updateModeUI();
 
   if(mode==="daily"){
@@ -449,16 +453,15 @@ function start(opts={}){
         finish();
       }else{
         current = saved.currentCode ? pool.find(c=>c.code===saved.currentCode) : null;
-        currentMistake=false;
-        if(current){ target.textContent=current.name; } else { nextQuestion(); return; }
+        if(current){ target.textContent=current.name; showLives(); } else { nextQuestion(); return; }
       }
       updateStats();
       return;
     }
     const rng=mulberry32(hashStr("flagmaster-"+dailyKey));
-    pool=seededShuffle(countries, rng).slice(0,30).map(([code,name])=>({code,name,identified:false}));
+    pool=seededShuffle(countries, rng).slice(0,30).map(([code,name])=>({code,name,identified:false,failed:false,tries:0,tried:[]}));
   }else{
-    pool=shuffle(countries).slice(0,30).map(([code,name])=>({code,name,identified:false}));
+    pool=shuffle(countries).slice(0,30).map(([code,name])=>({code,name,identified:false,failed:false,tries:0,tried:[]}));
   }
   correct=wrong=streak=score=0;
   render();
@@ -470,7 +473,7 @@ function render(){
   grid.innerHTML="";
   pool.forEach((c,i)=>{
     const card=document.createElement("div");
-    card.className="flag-card"+(c.identified?" identified":"");
+    card.className="flag-card"+(c.identified?" identified":"")+(c.failed?" failed":"");
     card.dataset.index=i;
     card.innerHTML=`<img src="https://flagcdn.com/w320/${c.code}.png" alt="Bandera">
                     <div class="flag-name">${c.identified?c.name:""}</div>`;
@@ -484,72 +487,73 @@ function nextQuestion(){
   const remaining=pool.filter(c=>!c.identified);
   if(!remaining.length){finish(true);return}
   current=remaining[Math.floor(Math.random()*remaining.length)];
-  currentMistake=false;
   target.textContent=current.name;
+  showLives();
   feedback.textContent="";
   feedback.className="feedback";
   mapPanel.classList.remove("show");
   nextBtn.style.display="none";
-  giveUpBtn.style.display="";
   persistDaily();
+}
+function showLives(){
+  const used=current ? (current.tries||0) : 2;
+  livesEl.innerHTML=[0,1].map(i=>`<span class="${i<2-used?"":"off"}">♥</span>`).join("");
 }
 function guess(index,card){
   if(pool[index].identified || !current) return;
   const chosen=pool[index];
   if(chosen.code===current.code){
+    const firstTry=!(current.tries>0);
     chosen.identified=true;
     correct++; streak++; score+=100+Math.min(streak*10,100);
     feedback.textContent="✓ ¡Correcto!";
     feedback.className="feedback good";
     card.classList.add("identified");
     card.querySelector(".flag-name").textContent=chosen.name;
-    recordFlag(chosen.code, !currentMistake);
+    recordFlag(chosen.code, firstTry);
     updateStats();
     persistDaily();
     if(document.getElementById("showMap").checked){
       showMap(chosen);
-      current=null;
-      giveUpBtn.style.display="none";
+      current=null; showLives();
       nextBtn.style.display="";
     }else{
       setTimeout(nextQuestion,650);
     }
-  }else{
-    wrong++; streak=0; score=Math.max(0,score-25);
-    currentMistake=true;
-    card.classList.remove("wrong"); void card.offsetWidth; card.classList.add("wrong");
-    feedback.textContent=document.getElementById("showWrongName").checked
-      ? `✗ Te equivocaste. Era ${chosen.name}.`
-      : "✗ Te equivocaste.";
+    return;
+  }
+  // Intento fallido
+  current.tried=current.tried||[];
+  if(current.tried.includes(chosen.code)) return; // misma bandera ya descartada
+  current.tried.push(chosen.code);
+  current.tries=(current.tries||0)+1;
+  streak=0; score=Math.max(0,score-25);
+  card.classList.remove("wrong"); void card.offsetWidth; card.classList.add("wrong");
+  setTimeout(()=>card.classList.remove("wrong"),350);
+  const showName=document.getElementById("showWrongName").checked;
+  if(current.tries<2){
+    feedback.textContent=(showName?`✗ Esa es ${chosen.name}. `:"✗ Esa no es. ")+"Te queda 1 intento.";
     feedback.className="feedback bad";
-    updateStats();
-    persistDaily();
-    setTimeout(()=>card.classList.remove("wrong"),350);
+    showLives(); updateStats(); persistDaily();
+    return;
   }
-}
-function giveUp(){
-  if(!current) return;
-  const idx=pool.findIndex(c=>c.code===current.code);
-  if(idx===-1) return;
-  const c=pool[idx];
-  c.identified=true;
-  const card=grid.children[idx];
-  if(card){
-    card.classList.add("identified");
-    card.querySelector(".flag-name").textContent=c.name;
+  // Segundo fallo: cuenta como error, se revela y queda en gris
+  wrong++;
+  const c=current;
+  const idx=pool.findIndex(x=>x.code===c.code);
+  c.identified=true; c.failed=true;
+  const real=grid.children[idx];
+  if(real){
+    real.classList.add("identified","failed");
+    real.querySelector(".flag-name").textContent=c.name;
   }
-  wrong++; streak=0;
-  feedback.textContent="Te rendiste. Era "+c.name+".";
+  feedback.textContent="✗ Era "+c.name+".";
   feedback.className="feedback bad";
   recordFlag(c.code, false);
-  updateStats();
-  showMap(c);
-  current=null;
-  giveUpBtn.style.display="none";
+  if(document.getElementById("showMap").checked) showMap(c);
+  current=null; showLives(); updateStats(); persistDaily();
   nextBtn.style.display="";
-  persistDaily();
 }
-giveUpBtn.onclick=giveUp;
 nextBtn.onclick=nextQuestion;
 function updateStats(){
   document.getElementById("correct").textContent=correct;
@@ -704,11 +708,11 @@ function closeStats(){ document.getElementById("statsModal").classList.remove("s
 async function finish(fromPlay=false){
   current=null; target.textContent="¡Terminaste!";
   feedback.textContent="";
-  giveUpBtn.style.display="none";
   nextBtn.style.display="none";
+  showLives();
   persistDaily();
   document.getElementById("endTitle").textContent = mode==="daily" ? "🎉 ¡Desafío diario completado!" : "🎉 ¡Completaste las 30!";
-  let text = `Identificaste las 30 banderas con ${wrong} error${wrong===1?"":"es"} y obtuviste ${score} puntos.`;
+  let text = `Acertaste ${correct} de 30 banderas, con ${wrong} error${wrong===1?"":"es"}, y obtuviste ${score} puntos.`;
   if(mode==="daily") text += " Vuelve mañana para un nuevo desafío.";
   document.getElementById("finalText").textContent=text;
   document.getElementById("end").classList.add("show");
@@ -734,7 +738,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeStats(); });
 document.querySelectorAll(".tab").forEach(t=>{ t.onclick=()=>openStats(t.dataset.tab); });
 document.getElementById("shareBtn").onclick=async()=>{
   const b=document.getElementById("shareBtn");
-  const txt=`Flag Challenge ${dailyKey}\n${wrong===0?"🏆 Sin errores":"❌ "+wrong+" error"+(wrong===1?"":"es")} · ${score} pts\n${location.href.split("#")[0]}`;
+  const txt=`Flag Challenge ${dailyKey}\n${wrong===0?"🏆 30/30":"✅ "+correct+"/30 · ❌ "+wrong+" error"+(wrong===1?"":"es")} · ${score} pts\n${location.href.split("#")[0]}`;
   try{
     await navigator.clipboard.writeText(txt);
     b.textContent="✓ ¡Copiado!";
