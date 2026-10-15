@@ -2,7 +2,7 @@
 
 Un juego de adivinar banderas del mundo, directo en el navegador — sin instalación, sin backend, un solo archivo HTML.
 
-**🎮 Jugar ahora:** [tu-usuario.github.io/flag-challenge](#) *(actualizá este link una vez que actives GitHub Pages)*
+**🎮 Jugar ahora:** [https://john2671.github.io/emol-flags/](#) 
 
 ---
 
