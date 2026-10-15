@@ -1,56 +1,65 @@
 # 🌎 Flag Challenge
 
-Un juego de adivinar banderas del mundo, directo en el navegador — sin instalación, sin backend, un solo archivo HTML.
+Un juego diario de adivinar banderas del mundo, directo en el navegador: sin instalación y con un solo archivo HTML.
 
-**🎮 Jugar ahora:** [https://john2671.github.io/emol-flags/](#) 
+**🎮 Jugar ahora:** [john2671.github.io/emol-flags](https://john2671.github.io/emol-flags/)
 
 ---
 
 ## Cómo se juega
 
-En cada ronda aparecen **30 países al azar** de los 195 posibles. El juego te muestra el nombre de un país y tenés que encontrar su bandera correcta entre las que se ven en la grilla. Las que vas acertando quedan marcadas y visibles, así de paso te las vas aprendiendo.
+Cada día hay un **desafío nuevo de 30 países**, el mismo para todos los jugadores. El juego te muestra el nombre de un país y tienes que encontrar su bandera entre las de la grilla. Las que vas resolviendo quedan marcadas con su nombre, así te las vas aprendiendo.
 
-- ✅ **Acertaste** → la bandera queda revelada con su nombre, sumás puntos y racha.
-- ❌ **Te equivocaste** → la bandera tiembla y perdés algo de puntaje (podés elegir si te muestra o no el nombre correcto al fallar).
-- 🏳️ **¿No tenés idea?** → apretá **"Me rindo"** y te muestra la respuesta y su ubicación en el mapa.
-- 📍 **Mostrar ubicación al acertar** → activa un mapa real (OpenStreetMap) que hace zoom al país que acabás de adivinar.
+- ✅ **Aciertas** → la bandera queda revelada con su nombre, y sumas puntos y racha.
+- ♥♥ **Tienes dos intentos por bandera** → al primer fallo te avisa que te queda uno. Al segundo fallo cuenta como error, te muestra la correcta en gris y pasas a la siguiente.
+- 📍 **Mostrar ubicación** → activa un mapa real (OpenStreetMap) que hace zoom al país que acabas de resolver.
+- 🎲 **Modo aleatorio** → si quieres seguir jugando, puedes pasar a un set al azar cuando quieras.
 
-El puntaje premia las rachas: mientras más seguidas aciertes, más vale cada acierto.
+Como cada bandera tiene máximo un error, el resultado final siempre suma 30: por ejemplo, 27 aciertos y 3 errores.
+
+El puntaje premia las rachas: mientras más aciertos seguidos, más vale cada uno.
+
+## Estadísticas
+
+- **Personales:** tu historial de días jugados, tu racha diaria y las banderas que más te cuestan.
+- **Globales:** cómo le fue a todos los jugadores hoy y cuáles son las banderas más difíciles.
+- **Compartir:** al terminar el desafío del día puedes copiar tu resultado para compartirlo.
 
 ## Características
 
 - 195 países con sus banderas (vía [flagcdn.com](https://flagcdn.com))
-- Mapa interactivo real con zoom automático por país, usando **Leaflet** + tiles de **OpenStreetMap**
+- Desafío diario igual para todos, que se guarda aunque recargues la página
+- Mapa interactivo con zoom automático por país, usando **Leaflet** y mapas de **OpenStreetMap**
 - Sistema de racha y puntaje
-- Botón de "rendirse" que revela la respuesta sin cortar la partida
-- 100% responsive (anda bien en el celular)
-- Sin frameworks, sin build, sin dependencias que instalar — es un solo archivo `.html`
+- 100% responsive: funciona bien en el celular
+- Sin frameworks ni build: es un solo archivo `.html`
 
 ## Tecnologías
 
-- HTML / CSS / JavaScript vanilla
+- HTML, CSS y JavaScript vanilla
 - [Leaflet.js](https://leafletjs.com/) para el mapa interactivo
-- Tiles de [OpenStreetMap](https://www.openstreetmap.org/) (contribuidores de OSM)
+- Mapas de [OpenStreetMap](https://www.openstreetmap.org/) (contribuidores de OSM)
 - Banderas servidas por [flagcdn.com](https://flagcdn.com)
+- [Supabase](https://supabase.com/) para las estadísticas globales
 
 ## Correrlo localmente
 
-No hace falta nada especial, es un archivo estático:
+No necesitas nada especial, es un archivo estático:
 
 ```bash
-git clone https://github.com/tu-usuario/flag-challenge.git
-cd flag-challenge
-# abrí index.html directo en el navegador, o serví la carpeta con:
+git clone https://github.com/john2671/emol-flags.git
+cd emol-flags
+# abre index.html directo en el navegador, o sirve la carpeta con:
 python3 -m http.server 8000
 ```
 
-Y entrá a `http://localhost:8000`.
+Y entra a `http://localhost:8000`.
 
 ## Créditos
 
-- Datos y tiles del mapa: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors
+- Datos y mapas: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors
 - Banderas: [flagcdn.com](https://flagcdn.com)
 
 ## Licencia
 
-MIT — usalo, modificalo, compartilo libremente.
+MIT: úsalo, modifícalo y compártelo libremente.
