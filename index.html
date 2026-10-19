@@ -57,10 +57,10 @@ h1{margin:0;font-size:clamp(38px,7vw,62px);font-weight:800;letter-spacing:-.028e
 .question .label{font-size:14px;color:#A9C4D8;margin-bottom:2px}
 .question .country{font-size:clamp(26px,5.2vw,42px);font-weight:800;letter-spacing:-.015em;line-height:1.1}
 .feedback{min-height:24px;font-weight:700;margin-top:8px}
+.feedback small{font-size:13px;font-weight:600;opacity:.9}
+.feedback u{text-decoration-thickness:2px;text-underline-offset:3px}
 .feedback.good{color:#7FE3AE}
 .feedback.bad{color:#FF9B8F}
-.lives{font-size:20px;letter-spacing:5px;color:#FF9B8F;margin-top:6px;line-height:1}
-.lives .off{opacity:.28}
 .answer-controls{min-height:44px;margin-top:10px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 
 button{
@@ -131,6 +131,9 @@ button:focus-visible,.flag-card:focus-visible{outline:3px solid var(--yellow);ou
 .modal-card{background:#fff;border-radius:20px;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:22px;position:relative;box-shadow:0 20px 50px rgba(0,0,0,.3)}
 .modal-card h2{margin:0 0 4px;font-size:24px;font-weight:800}
 .modal-card h3{margin:20px 0 8px;font-size:16px;font-weight:700}
+.share-box{display:none;margin:12px 0 4px;padding:14px;border-radius:16px;background:#EAF4F9;border:2px dashed #A9C9DA;text-align:center}
+.share-box.show{display:block}
+.share-box pre{margin:0 0 12px;font:inherit;font-size:15px;line-height:1.45;white-space:pre-wrap;word-break:break-word;color:var(--ink)}
 .modal-close{position:absolute;top:12px;right:12px;background:transparent;color:var(--ink-soft);padding:6px 10px;font-size:16px;box-shadow:none}
 .modal-close:active{box-shadow:none;transform:none}
 .tabs{display:flex;gap:4px;margin:12px 0 16px;background:#E3EEF4;border-radius:14px;padding:4px}
@@ -211,15 +214,12 @@ button:focus-visible,.flag-card:focus-visible{outline:3px solid var(--yellow);ou
       <div class="progress"><div id="progressFill"></div></div>
     </div>
     <div class="sc"><b id="wrong">0</b><span>errores</span></div>
-    <div class="sc"><b id="streak">0</b><span>racha</span></div>
-    <div class="sc"><b id="score">0</b><span>puntos</span></div>
   </div>
 
   <section class="question">
     <div class="q-inner">
       <div class="label">Busca la bandera de</div>
       <div class="country" id="target">—</div>
-      <div class="lives" id="lives" aria-label="Intentos restantes"></div>
       <div id="feedback" class="feedback"></div>
       <div class="answer-controls">
         <button id="nextBtn" class="btn-next" style="display:none">Siguiente</button>
@@ -252,7 +252,6 @@ button:focus-visible,.flag-card:focus-visible{outline:3px solid var(--yellow);ou
     <h2 id="endTitle">🎉 ¡Completaste las 30!</h2>
     <p id="finalText"></p>
     <div class="end-actions">
-      <button id="shareBtn">Compartir resultado</button>
       <button id="endStatsBtn" class="btn-secondary">Ver estadísticas</button>
       <button id="restart">Jugar de nuevo</button>
     </div>
@@ -263,6 +262,10 @@ button:focus-visible,.flag-card:focus-visible{outline:3px solid var(--yellow);ou
   <div class="modal-card">
     <button id="statsClose" class="modal-close" aria-label="Cerrar">✕</button>
     <h2>Estadísticas</h2>
+    <div id="shareBox" class="share-box">
+      <pre id="sharePreview"></pre>
+      <button id="shareBtn">Compartir resultado</button>
+    </div>
     <div class="tabs">
       <button class="tab active" data-tab="personal">Personales</button>
       <button class="tab" data-tab="global">Globales</button>
@@ -354,10 +357,11 @@ const statsEnabled = Boolean(SUPABASE_URL && SUPABASE_KEY);
 const sbHeaders = {"Content-Type":"application/json","apikey":SUPABASE_KEY};
 
 async function sbRpc(name, body){
-  if(!statsEnabled) return;
+  if(!statsEnabled) return false;
   try{
-    await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{method:"POST",headers:sbHeaders,body:JSON.stringify(body)});
-  }catch(e){ /* sin red: no bloquea el juego */ }
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{method:"POST",headers:sbHeaders,body:JSON.stringify(body)});
+    return res.ok;
+  }catch(e){ return false; /* sin red: no bloquea el juego */ }
 }
 async function sbGet(path){
   if(!statsEnabled) return null;
@@ -403,13 +407,12 @@ function loadJSON(key, fallback){
 function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)) }catch(e){} }
 
 /* ============ Estado del juego ============ */
-let pool=[], current=null, correct=0, wrong=0, streak=0, score=0, mode="daily", dailyKey=todayKey();
+let pool=[], current=null, correct=0, wrong=0, mode="daily", dailyKey=todayKey();
 const grid=document.getElementById("grid");
 const target=document.getElementById("target");
 const feedback=document.getElementById("feedback");
 const mapPanel=document.getElementById("mapPanel");
 const mapWrap=document.getElementById("mapWrap");
-const livesEl=document.getElementById("lives");
 const nextBtn=document.getElementById("nextBtn");
 const modeBadge=document.getElementById("modeBadge");
 const modeToggle=document.getElementById("modeToggle");
@@ -418,7 +421,7 @@ function dailyStorageKey(){ return "flagmaster_daily_"+dailyKey; }
 function persistDaily(){
   if(mode!=="daily") return;
   saveJSON(dailyStorageKey(), {
-    pool, correct, wrong, streak, score,
+    pool, correct, wrong,
     currentCode: current ? current.code : null,
     finished: pool.every(c=>c.identified)
   });
@@ -447,23 +450,23 @@ function start(opts={}){
     updateModeUI();
     const saved = loadJSON(dailyStorageKey(), null);
     if(saved){
-      pool=saved.pool; correct=saved.correct; wrong=saved.wrong; streak=saved.streak; score=saved.score;
+      pool=saved.pool; correct=saved.correct; wrong=saved.wrong;
       render();
       if(saved.finished){
         finish();
       }else{
         current = saved.currentCode ? pool.find(c=>c.code===saved.currentCode) : null;
-        if(current){ target.textContent=current.name; showLives(); } else { nextQuestion(); return; }
+        if(current){ target.textContent=current.name; } else { nextQuestion(); return; }
       }
       updateStats();
       return;
     }
     const rng=mulberry32(hashStr("flagmaster-"+dailyKey));
-    pool=seededShuffle(countries, rng).slice(0,30).map(([code,name])=>({code,name,identified:false,failed:false,tries:0,tried:[]}));
+    pool=seededShuffle(countries, rng).slice(0,30).map(([code,name])=>({code,name,identified:false,failed:false}));
   }else{
-    pool=shuffle(countries).slice(0,30).map(([code,name])=>({code,name,identified:false,failed:false,tries:0,tried:[]}));
+    pool=shuffle(countries).slice(0,30).map(([code,name])=>({code,name,identified:false,failed:false}));
   }
-  correct=wrong=streak=score=0;
+  correct=wrong=0;
   render();
   nextQuestion();
   updateStats();
@@ -488,56 +491,35 @@ function nextQuestion(){
   if(!remaining.length){finish(true);return}
   current=remaining[Math.floor(Math.random()*remaining.length)];
   target.textContent=current.name;
-  showLives();
   feedback.textContent="";
   feedback.className="feedback";
   mapPanel.classList.remove("show");
   nextBtn.style.display="none";
   persistDaily();
 }
-function showLives(){
-  const used=current ? (current.tries||0) : 2;
-  livesEl.innerHTML=[0,1].map(i=>`<span class="${i<2-used?"":"off"}">♥</span>`).join("");
-}
 function guess(index,card){
   if(pool[index].identified || !current) return;
   const chosen=pool[index];
   if(chosen.code===current.code){
-    const firstTry=!(current.tries>0);
     chosen.identified=true;
-    correct++; streak++; score+=100+Math.min(streak*10,100);
+    correct++;
     feedback.textContent="✓ ¡Correcto!";
     feedback.className="feedback good";
     card.classList.add("identified");
     card.querySelector(".flag-name").textContent=chosen.name;
-    recordFlag(chosen.code, firstTry);
+    recordFlag(chosen.code, true);
     updateStats();
     persistDaily();
     if(document.getElementById("showMap").checked){
       showMap(chosen);
-      current=null; showLives();
+      current=null;
       nextBtn.style.display="";
     }else{
       setTimeout(nextQuestion,650);
     }
     return;
   }
-  // Intento fallido
-  current.tried=current.tried||[];
-  if(current.tried.includes(chosen.code)) return; // misma bandera ya descartada
-  current.tried.push(chosen.code);
-  current.tries=(current.tries||0)+1;
-  streak=0; score=Math.max(0,score-25);
-  card.classList.remove("wrong"); void card.offsetWidth; card.classList.add("wrong");
-  setTimeout(()=>card.classList.remove("wrong"),350);
-  const showName=document.getElementById("showWrongName").checked;
-  if(current.tries<2){
-    feedback.textContent=(showName?`✗ Esa es ${chosen.name}. `:"✗ Esa no es. ")+"Te queda 1 intento.";
-    feedback.className="feedback bad";
-    showLives(); updateStats(); persistDaily();
-    return;
-  }
-  // Segundo fallo: cuenta como error, se revela y queda en gris
+  // Fallo: cuenta como error, se revela la correcta en gris y se sigue con "Siguiente"
   wrong++;
   const c=current;
   const idx=pool.findIndex(x=>x.code===c.code);
@@ -547,19 +529,26 @@ function guess(index,card){
     real.classList.add("identified","failed");
     real.querySelector(".flag-name").textContent=c.name;
   }
-  feedback.textContent="✗ Era "+c.name+".";
+  card.classList.remove("wrong"); void card.offsetWidth; card.classList.add("wrong");
+  setTimeout(()=>card.classList.remove("wrong"),350);
+  const showName=document.getElementById("showWrongName").checked;
+  feedback.innerHTML=`✗ Fallaste. La bandera de <u>${c.name}</u> es la que quedó en gris.`+(showName?`<br><small>La que elegiste es la de ${chosen.name}.</small>`:"");
   feedback.className="feedback bad";
   recordFlag(c.code, false);
   if(document.getElementById("showMap").checked) showMap(c);
-  current=null; showLives(); updateStats(); persistDaily();
+  current=null;
+  updateStats(); persistDaily();
   nextBtn.style.display="";
 }
 nextBtn.onclick=nextQuestion;
+function resultRows(){
+  const sq=pool.map(c=>c.failed?"⬛":"🟩");
+  const rows=[]; for(let i=0;i<sq.length;i+=6) rows.push(sq.slice(i,i+6).join(""));
+  return rows.join("\n");
+}
 function updateStats(){
   document.getElementById("correct").textContent=correct;
   document.getElementById("wrong").textContent=wrong;
-  document.getElementById("streak").textContent=streak;
-  document.getElementById("score").textContent=score;
   const done=pool.filter(c=>c.identified).length;
   document.getElementById("progressFill").style.width=(done/30*100)+"%";
 }
@@ -609,10 +598,17 @@ function recordFlag(code, firstTry){
 async function recordDailyIfNeeded(){
   if(mode!=="daily") return;
   const hist=loadJSON(HIST_KEY,{});
-  if(hist[dailyKey]) return;
-  hist[dailyKey]={wrong,score};
-  saveJSON(HIST_KEY,hist);
-  await reportDaily(dailyKey, wrong);
+  if(!hist[dailyKey]){
+    hist[dailyKey]={wrong,correct,sent:false};
+    saveJSON(HIST_KEY,hist);
+  }
+  if(hist[dailyKey].sent===false){ // reintenta si el envío anterior falló
+    const ok=await reportDaily(dailyKey, hist[dailyKey].wrong);
+    if(ok){
+      const h=loadJSON(HIST_KEY,{});
+      if(h[dailyKey]){ h[dailyKey].sent=true; saveJSON(HIST_KEY,h); }
+    }
+  }
 }
 function dayStreak(hist){
   let n=0; const cur=new Date();
@@ -621,7 +617,7 @@ function dayStreak(hist){
   return n;
 }
 function flagTable(rows, thirdLabel){
-  return `<table class="stats-table"><tr><th></th><th>País</th><th>% a la primera</th><th>${thirdLabel}</th></tr>`
+  return `<table class="stats-table"><tr><th></th><th>País</th><th>% de aciertos</th><th>${thirdLabel}</th></tr>`
     + rows.map(r=>`<tr><td><img src="https://flagcdn.com/w40/${r.code}.png" alt=""></td><td>${nameByCode[r.code]||r.code}</td><td>${r.pct}%</td><td>${r.n}</td></tr>`).join("")
     + `</table>`;
 }
@@ -633,14 +629,14 @@ function renderPersonal(){
   if(!days.length && !seen){
     return `<p class="stats-note">Todavía no tienes partidas guardadas. ¡Juega el desafío de hoy!</p>`;
   }
-  const best=days.length ? Math.max(...days.map(d=>hist[d].score)) : 0;
+  const best=days.length ? Math.min(...days.map(d=>hist[d].wrong)) : "–";
   const avgErr=days.length ? (days.reduce((s,d)=>s+hist[d].wrong,0)/days.length).toFixed(1) : "–";
   const perfect=days.filter(d=>hist[d].wrong===0).length;
   let html=`<div class="kpis">
     <div class="kpi"><b>${days.length}</b><span>Días jugados</span></div>
     <div class="kpi"><b>${dayStreak(hist)}</b><span>Racha de días</span></div>
     <div class="kpi"><b>${perfect}</b><span>Días sin errores</span></div>
-    <div class="kpi"><b>${best}</b><span>Mejor puntaje</span></div>
+    <div class="kpi"><b>${best}</b><span>Mejor día (errores)</span></div>
     <div class="kpi"><b>${avgErr}</b><span>Errores por día</span></div>
     <div class="kpi"><b>${seen}/${countries.length}</b><span>Banderas vistas</span></div>
   </div>`;
@@ -663,7 +659,8 @@ async function renderGlobal(){
     return `<p class="stats-note">No se pudieron cargar las estadísticas. Revisa tu conexión e inténtalo de nuevo.</p>`;
   }
   const mine=loadJSON(HIST_KEY,{})[dailyKey];
-  let html=`<h3>Resultados de hoy (${dailyKey})</h3>`;
+  const dLabel=new Date(dailyKey+"T00:00:00").toLocaleDateString("es",{day:"numeric",month:"long"});
+  let html=`<h3>Resultados de hoy (${dLabel})</h3>`;
   const rowsD=dist||[];
   const total=rowsD.reduce((s,r)=>s+r.players,0);
   if(!total){
@@ -676,17 +673,21 @@ async function renderGlobal(){
       const w=c.n ? Math.max(c.n/max*100,3) : 0;
       return `<div class="bar-row"><span class="bar-label">${c.l}</span><div class="bar-track"><div class="bar ${isMine?"mine":""}" style="width:${w}%"></div></div><span class="bar-val">${c.n}</span></div>`;
     }).join("");
-    html+=`<p class="stats-note">Errores por jugador · ${total} jugador${total===1?"":"es"} hoy${mine?` · tú: ${mine.wrong}`:""}</p>`;
+    html+=`<p class="stats-note">Cantidad de jugadores según sus errores · ${total} jugador${total===1?"":"es"} hoy${mine?` · tú: ${mine.wrong}`:""}</p>`;
     if(mine && total>1){
+      const others=total-1;
       const worse=rowsD.filter(r=>r.errors>mine.wrong).reduce((s,r)=>s+r.players,0);
-      html+=`<p>Tuviste menos errores que el <b>${Math.round(worse/total*100)}%</b> de los jugadores.</p>`;
+      const pct=Math.round(worse/others*100);
+      html+= pct>0
+        ? `<p>Tuviste menos errores que el <b>${pct}%</b> de los demás jugadores.</p>`
+        : `<p>Hoy fue un desafío difícil. ¡Mañana hay revancha!</p>`;
     }
   }
-  const rows=(flags||[]).filter(r=>r.attempts>0)
+  const rows=(flags||[]).filter(r=>r.attempts>=3)
     .map(r=>({code:r.code,n:r.attempts,pct:Math.round(r.correct/r.attempts*100)}))
     .sort((a,b)=>a.pct-b.pct||b.n-a.n).slice(0,8);
   if(rows.length) html+=`<h3>Las banderas que más le cuestan a todos</h3>`+flagTable(rows,"Intentos")
-    +`<p class="stats-note">% de veces que se acertó a la primera, entre todos los jugadores.</p>`;
+    +`<p class="stats-note">% de veces que se acertó cada bandera, entre todos los jugadores (mínimo 3 intentos).</p>`;
   return html;
 }
 let statsTab="personal";
@@ -695,6 +696,9 @@ async function openStats(tab){
   const modal=document.getElementById("statsModal");
   modal.classList.add("show");
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===statsTab));
+  const canShare = mode==="daily" && pool.length>0 && pool.every(c=>c.identified);
+  document.getElementById("shareBox").classList.toggle("show",canShare);
+  if(canShare) document.getElementById("sharePreview").textContent=shareText().replace(/\n?https?:\/\/\S+$/,"");
   const body=document.getElementById("statsBody");
   const wanted=statsTab;
   if(wanted==="personal"){ body.innerHTML=renderPersonal(); return; }
@@ -709,10 +713,9 @@ async function finish(fromPlay=false){
   current=null; target.textContent="¡Terminaste!";
   feedback.textContent="";
   nextBtn.style.display="none";
-  showLives();
   persistDaily();
   document.getElementById("endTitle").textContent = mode==="daily" ? "🎉 ¡Desafío diario completado!" : "🎉 ¡Completaste las 30!";
-  let text = `Acertaste ${correct} de 30 banderas, con ${wrong} error${wrong===1?"":"es"}, y obtuviste ${score} puntos.`;
+  let text = `Acertaste ${correct} de 30 banderas, con ${wrong} error${wrong===1?"":"es"}.`;
   if(mode==="daily") text += " Vuelve mañana para un nuevo desafío.";
   document.getElementById("finalText").textContent=text;
   document.getElementById("end").classList.add("show");
@@ -736,9 +739,12 @@ document.getElementById("statsClose").onclick=closeStats;
 document.getElementById("statsModal").addEventListener("click",e=>{ if(e.target.id==="statsModal") closeStats(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeStats(); });
 document.querySelectorAll(".tab").forEach(t=>{ t.onclick=()=>openStats(t.dataset.tab); });
+function shareText(){
+  return `Flag Challenge ${dailyKey}\n${correct}/30 · ${wrong} error${wrong===1?"":"es"}\n${resultRows()}\n${location.href.split("#")[0]}`;
+}
 document.getElementById("shareBtn").onclick=async()=>{
   const b=document.getElementById("shareBtn");
-  const txt=`Flag Challenge ${dailyKey}\n${wrong===0?"🏆 30/30":"✅ "+correct+"/30 · ❌ "+wrong+" error"+(wrong===1?"":"es")} · ${score} pts\n${location.href.split("#")[0]}`;
+  const txt=shareText();
   try{
     await navigator.clipboard.writeText(txt);
     b.textContent="✓ ¡Copiado!";

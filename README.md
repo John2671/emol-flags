@@ -10,18 +10,16 @@ Un juego diario de adivinar banderas del mundo, directo en el navegador: sin ins
 
 Cada día hay un **desafío nuevo de 30 países**, el mismo para todos los jugadores. El juego te muestra el nombre de un país y tienes que encontrar su bandera entre las de la grilla. Las que vas resolviendo quedan marcadas con su nombre, así te las vas aprendiendo.
 
-- ✅ **Aciertas** → la bandera queda revelada con su nombre, y sumas puntos y racha.
-- ♥♥ **Tienes dos intentos por bandera** → al primer fallo te avisa que te queda uno. Al segundo fallo cuenta como error, te muestra la correcta en gris y pasas a la siguiente.
+- ✅ **Aciertas** → la bandera queda revelada con su nombre.
+- ❌ **Fallas** → cuenta como error, te muestra la bandera correcta en gris y pasas a la siguiente. Solo hay un intento por bandera.
 - 📍 **Mostrar ubicación** → activa un mapa real (OpenStreetMap) que hace zoom al país que acabas de resolver.
 - 🎲 **Modo aleatorio** → si quieres seguir jugando, puedes pasar a un set al azar cuando quieras.
 
-Como cada bandera tiene máximo un error, el resultado final siempre suma 30: por ejemplo, 27 aciertos y 3 errores.
-
-El puntaje premia las rachas: mientras más aciertos seguidos, más vale cada uno.
+Cada bandera se juega una sola vez, así que el resultado final siempre suma 30: por ejemplo, 27 aciertos y 3 errores.
 
 ## Estadísticas
 
-- **Personales:** tu historial de días jugados, tu racha diaria y las banderas que más te cuestan.
+- **Personales:** tus días jugados, tu racha de días, tu mejor día y las banderas que más te cuestan.
 - **Globales:** cómo le fue a todos los jugadores hoy y cuáles son las banderas más difíciles.
 - **Compartir:** al terminar el desafío del día puedes copiar tu resultado para compartirlo.
 
@@ -30,7 +28,7 @@ El puntaje premia las rachas: mientras más aciertos seguidos, más vale cada un
 - 195 países con sus banderas (vía [flagcdn.com](https://flagcdn.com))
 - Desafío diario igual para todos, que se guarda aunque recargues la página
 - Mapa interactivo con zoom automático por país, usando **Leaflet** y mapas de **OpenStreetMap**
-- Sistema de racha y puntaje
+- Marcador simple: aciertos y errores
 - 100% responsive: funciona bien en el celular
 - Sin frameworks ni build: es un solo archivo `.html`
 
